@@ -1,4 +1,5 @@
--- users
+-- ─── users ────────────────────────────────────────────────────────────────────
+
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "users_select_own" ON public.users
@@ -10,9 +11,12 @@ CREATE POLICY "users_update_own" ON public.users
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- runs
+
+-- ─── runs ─────────────────────────────────────────────────────────────────────
+
 ALTER TABLE public.runs ENABLE ROW LEVEL SECURITY;
 
+-- Authenticated: own run or a run they have a queue entry in
 CREATE POLICY "runs_select_authenticated" ON public.runs
   FOR SELECT TO authenticated
   USING (
@@ -23,6 +27,7 @@ CREATE POLICY "runs_select_authenticated" ON public.runs
     )
   );
 
+-- Anon: unrestricted read — needed for QR join lookup by session_code
 CREATE POLICY "runs_select_anon" ON public.runs
   FOR SELECT TO anon
   USING (true);
@@ -36,17 +41,22 @@ CREATE POLICY "runs_update" ON public.runs
   USING (host_id = auth.uid())
   WITH CHECK (host_id = auth.uid());
 
--- queue_entries
+
+-- ─── queue_entries ────────────────────────────────────────────────────────────
+
 ALTER TABLE public.queue_entries ENABLE ROW LEVEL SECURITY;
 
+-- Anyone can read — guests and spectators need the queue list
 CREATE POLICY "queue_entries_select" ON public.queue_entries
   FOR SELECT
   USING (true);
 
+-- Anyone can insert — guest join requires no account
 CREATE POLICY "queue_entries_insert" ON public.queue_entries
   FOR INSERT
   WITH CHECK (true);
 
+-- Only the run host can update (status changes, reordering)
 CREATE POLICY "queue_entries_update" ON public.queue_entries
   FOR UPDATE TO authenticated
   USING (
@@ -62,9 +72,12 @@ CREATE POLICY "queue_entries_update" ON public.queue_entries
     )
   );
 
--- games
+
+-- ─── games ────────────────────────────────────────────────────────────────────
+
 ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 
+-- Anyone can read — spectators need live game state
 CREATE POLICY "games_select" ON public.games
   FOR SELECT
   USING (true);
@@ -93,9 +106,12 @@ CREATE POLICY "games_update" ON public.games
     )
   );
 
--- game_players
+
+-- ─── game_players ─────────────────────────────────────────────────────────────
+
 ALTER TABLE public.game_players ENABLE ROW LEVEL SECURITY;
 
+-- Anyone can read — spectators and players need to see team rosters
 CREATE POLICY "game_players_select" ON public.game_players
   FOR SELECT
   USING (true);
@@ -110,9 +126,12 @@ CREATE POLICY "game_players_insert" ON public.game_players
     )
   );
 
--- score_events
+
+-- ─── score_events ─────────────────────────────────────────────────────────────
+
 ALTER TABLE public.score_events ENABLE ROW LEVEL SECURITY;
 
+-- Anyone can read — score log is public within a run
 CREATE POLICY "score_events_select" ON public.score_events
   FOR SELECT
   USING (true);
@@ -127,6 +146,7 @@ CREATE POLICY "score_events_insert" ON public.score_events
     )
   );
 
+-- Only update voided_at — undo flow
 CREATE POLICY "score_events_update" ON public.score_events
   FOR UPDATE TO authenticated
   USING (
