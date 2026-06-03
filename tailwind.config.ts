@@ -31,6 +31,7 @@ export default {
         "team-b": "#ffffff",
 
         // Utility
+        warning: "#ff6b35",
         danger: "#ff4040",
         "danger-light": "rgba(255, 64, 64, 0.08)",
       },
