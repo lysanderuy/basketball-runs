@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { RunProvider } from "@/contexts/RunContext";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -19,9 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        <RunProvider>{children}</RunProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
