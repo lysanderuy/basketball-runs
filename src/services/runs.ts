@@ -6,16 +6,10 @@ import type { Run } from "@/types/db";
 export async function createRun(
   input: CreateRunInput & { hostId: string }
 ): Promise<Run> {
-  const { hostId, ...fields } = input;
+  const { hostId, name, location, format, sessionCode, scoreGoal, timeLimitSeconds } = input;
   const [run] = await db
     .insert(runs)
-    .values({
-      hostId,
-      name: fields.name,
-      location: fields.location,
-      format: fields.format,
-      sessionCode: fields.sessionCode,
-    })
+    .values({ hostId, name, location, format, sessionCode, scoreGoal, timeLimitSeconds })
     .returning();
   return run;
 }
