@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// GET /api/runs/[code] — fetch run by session code
-export async function GET(
+// PATCH /api/runs/[code]/status — update run status (lobby → active → completed)
+export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ code: string }> },
 ) {
