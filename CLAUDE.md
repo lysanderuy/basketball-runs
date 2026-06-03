@@ -12,7 +12,7 @@ This file governs every AI session in this repo. Read it fully before touching a
 | Language | TypeScript — strict mode |
 | Database | Supabase (PostgreSQL) |
 | ORM | Drizzle ORM |
-| Migrations | Hand-written SQL + Supabase CLI (`supabase db push`) |
+| Migrations | `node-pg-migrate` — JS builder API (`db/migrations/`) |
 | Auth | Supabase Auth + `@supabase/ssr` |
 | Validation | Zod |
 | Styling | Tailwind CSS |
@@ -133,21 +133,26 @@ These are non-negotiable — violations break the app silently.
 
 ## Migration Rules
 
-Drizzle Kit is **not used**. All migrations are hand-written SQL applied via Supabase CLI.
+Drizzle Kit is **not used**. Migrations are JS files managed by `node-pg-migrate`, applied directly via `DIRECT_URL`.
 
 ```bash
 # Any schema change (table, column, index, RLS, trigger):
-# 1. Write SQL to supabase/migrations/<next_number>_<description>.sql
-# 2. Apply:
-npm run db:push
+# 1. Scaffold:
+npm run db:migrate:create -- <description>
+# 2. Edit the generated file in db/migrations/
+# 3. Apply:
+npm run db:migrate
+# Roll back last migration:
+npm run db:migrate:down
 ```
 
-**Naming:** files must sort alphabetically in apply order — use zero-padded sequential numbers (`0005_`, `0006_`, …).
+**Naming:** `node-pg-migrate` prefixes files with a timestamp automatically — do not rename them.
 
 - **Never edit a migration file after it has been applied** — write a new one
 - `lib/db/schema.ts` is the Drizzle ORM definition — keep it in sync with migrations manually
-- RLS policies and triggers are always hand-written SQL
-- `supabase/migrations/meta/` is a drizzle-kit artifact — ignore it
+- RLS policies and triggers go in migration files using `pgm.sql()`
+- `supabase/migrations/` contains legacy SQL files (already applied) — do not touch them
+- Runner script: `tools/run-pg-migrate.mjs` — loads `DIRECT_URL` from `.env`
 
 ---
 
@@ -199,8 +204,8 @@ Auth is enforced by middleware, not layouts. Do not add auth checks to layouts �
 
 ## What NOT To Do
 
-- Do not use `drizzle-kit` — it is removed; write SQL migrations manually
-- Do not run `supabase db push` without first writing and reviewing the migration SQL
+- Do not use `drizzle-kit` — it is removed
+- Do not use `supabase db push` — migrations now go through `node-pg-migrate`
 - Do not write to `games.score_a` or `games.score_b` from app code
 - Do not hard-delete queue entries — set `status = 'removed'`
 - Do not query `lib/db/` from inside `app/` pages or components
