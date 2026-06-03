@@ -1,4 +1,4 @@
-# OpenRun — Agent Instructions
+# BallRuns — Agent Instructions
 
 This file governs all AI agents working in this repo. Read it fully before touching any file.
 

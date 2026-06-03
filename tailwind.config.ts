@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // OpenRun Design Tokens
+        // BallRuns Design Tokens
         bg: "#0e0f0c",
         "bg-raised": "#161710",
         "bg-surface": "#1e2019",

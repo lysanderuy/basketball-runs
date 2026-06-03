@@ -1,8 +1,8 @@
-# OpenRun — Product Brief
+# BallRuns — Product Brief
 
 ## What It Is
 
-OpenRun is a live basketball session manager built for how open runs actually work. The host manages the game from their phone, everyone else watches live from their browser. No app install required, minimal friction for players.
+BallRuns is a live basketball session manager built for how open runs actually work. The host manages the game from their phone, everyone else watches live from their browser. No app install required, minimal friction for players.
 
 ---
 

@@ -1,8 +1,8 @@
-# OpenRun — Component Reference
+# BallRuns — Component Reference
 
 > Source of truth for all components built across all screens. Every component here exists in a shipped HTML file. Nothing assumed. Do not add components that haven't been built yet.
 
-**Screens covered:** `openrun-game.html`, `openrun-lobby-host.html`, `openrun-team-assignment.html`, `openrun-results.html`, `openrun-spectator.html`, `openrun-feed.html`, `openrun-create-run.html`, `openrun-landing.html`, `openrun-queue.html`
+**Screens covered:** `BallRuns-game.html`, `BallRuns-lobby-host.html`, `BallRuns-team-assignment.html`, `BallRuns-results.html`, `BallRuns-spectator.html`, `BallRuns-feed.html`, `BallRuns-create-run.html`, `BallRuns-landing.html`, `BallRuns-queue.html`
 
 ---
 
@@ -2106,4 +2106,4 @@ Player-only strip showing their position in the queue. Hidden for spectators.
 
 ---
 
-*Last updated after: `openrun-queue.html`. Do not add components to this file that don't exist in a built HTML screen.*
+*Last updated after: `BallRuns-queue.html`. Do not add components to this file that don't exist in a built HTML screen.*

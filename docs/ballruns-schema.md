@@ -1,4 +1,4 @@
-# OpenRun — Database Schema
+# BallRuns — Database Schema
 
 > Supabase / PostgreSQL · Event-sourced scoring · Linked-list queue
 
@@ -20,7 +20,7 @@
 
 ## Architecture Overview
 
-OpenRun uses three user roles — **Host**, **Player**, and **Spectator** — each with different levels of access. The host is the only authenticated user. Players and spectators are guests who join via session code.
+BallRuns uses three user roles — **Host**, **Player**, and **Spectator** — each with different levels of access. The host is the only authenticated user. Players and spectators are guests who join via session code.
 
 All live score updates flow through Supabase Realtime. When the host taps a player to score, a row is inserted into `score_events`. A database trigger fires in the same transaction, recomputing and writing the updated score to `games.score_a` or `games.score_b`. Realtime then broadcasts the updated `games` row to every connected client. No client holds local score state — all clients derive their view from the database.
 

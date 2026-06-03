@@ -1,4 +1,4 @@
-# OpenRun — Claude Instructions
+# BallRuns — Claude Instructions
 
 This file governs every AI session in this repo. Read it fully before touching any file.
 

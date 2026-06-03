@@ -1,10 +1,10 @@
-# OpenRun — Brand Guidelines & Design System
+# BallRuns — Brand Guidelines & Design System
 
 ---
 
 ## 1. Brand Foundation
 
-### What OpenRun Is
+### What BallRuns Is
 
 A live basketball session manager built for how open runs actually work. The host runs everything from one screen. Players join with a scan. Everyone sees the score in real time — including people still on their way.
 
