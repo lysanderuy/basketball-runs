@@ -12,7 +12,7 @@ This file governs every AI session in this repo. Read it fully before touching a
 | Language | TypeScript — strict mode |
 | Database | Supabase (PostgreSQL) |
 | ORM | Drizzle ORM |
-| Migrations | Drizzle Kit (generate) + Supabase CLI (deploy) |
+| Migrations | Hand-written SQL + Supabase CLI (`supabase db push`) |
 | Auth | Supabase Auth + `@supabase/ssr` |
 | Validation | Zod |
 | Styling | Tailwind CSS |
@@ -112,8 +112,8 @@ UI (pages/components)
 | Player | Guest (optional) | Join queue, view live score |
 | Spectator | Guest | Read-only |
 
-- `(protected)/layout.tsx` guards all host-only pages
-- Middleware (`lib/supabase/proxy.ts`) provides early redirect for `/create-run`, `/history`, `/account`
+- Middleware (`lib/supabase/proxy.ts`) is the auth enforcement layer — redirects unauthenticated users away from `/create-run`, `/history`, `/account`
+- `(protected)/layout.tsx` is a pure passthrough — do not add auth checks here
 - RLS enforces authorization at the DB level — do not re-implement access checks in services
 - Guest mutations (join queue) go through API routes — RLS `WITH CHECK (true)` allows them
 
@@ -133,21 +133,21 @@ These are non-negotiable — violations break the app silently.
 
 ## Migration Rules
 
-```bash
-# Schema change (new table, new column, index):
-npm run db:generate        # drizzle-kit diffs schema → writes SQL to supabase/migrations/
-# review the generated file
-npm run db:push            # supabase db push — applies all pending migrations
+Drizzle Kit is **not used**. All migrations are hand-written SQL applied via Supabase CLI.
 
-# RLS / trigger change:
-# write SQL manually to supabase/migrations/<timestamp>_description.sql
+```bash
+# Any schema change (table, column, index, RLS, trigger):
+# 1. Write SQL to supabase/migrations/<next_number>_<description>.sql
+# 2. Apply:
 npm run db:push
 ```
 
-- **Never run `drizzle-kit migrate`** — it bypasses Supabase and creates a separate migration history
+**Naming:** files must sort alphabetically in apply order — use zero-padded sequential numbers (`0005_`, `0006_`, …).
+
 - **Never edit a migration file after it has been applied** — write a new one
-- Drizzle generates table/index/FK SQL. RLS policies and triggers are always hand-written SQL
-- Migration files apply in alphabetical order — naming must be sequential
+- `lib/db/schema.ts` is the Drizzle ORM definition — keep it in sync with migrations manually
+- RLS policies and triggers are always hand-written SQL
+- `supabase/migrations/meta/` is a drizzle-kit artifact — ignore it
 
 ---
 
@@ -177,9 +177,30 @@ if (!result.success) {
 
 ---
 
+## Next.js 15 — Dynamic Rendering
+
+Next.js 15 requires explicit opt-in for any layout or page that accesses request-time data. Without it, the route throws a "blocking route" error.
+
+**Rule: any layout or page that accesses `params`, `searchParams`, `cookies()`, or `headers()` must declare:**
+
+```ts
+export const dynamic = "force-dynamic";
+```
+
+This applies to:
+- Layouts that read `params` to fetch data (e.g. `runs/[code]/layout.tsx`)
+- API routes do NOT need it — they are always dynamic
+- Client components (`"use client"`) do NOT need it — they run in the browser
+- Pure passthrough layouts with no data access do NOT need it
+
+Auth is enforced by middleware, not layouts. Do not add auth checks to layouts — this was the original cause of the `(protected)/layout.tsx` error.
+
+---
+
 ## What NOT To Do
 
-- Do not use `drizzle-kit migrate` — use `supabase db push`
+- Do not use `drizzle-kit` — it is removed; write SQL migrations manually
+- Do not run `supabase db push` without first writing and reviewing the migration SQL
 - Do not write to `games.score_a` or `games.score_b` from app code
 - Do not hard-delete queue entries — set `status = 'removed'`
 - Do not query `lib/db/` from inside `app/` pages or components
