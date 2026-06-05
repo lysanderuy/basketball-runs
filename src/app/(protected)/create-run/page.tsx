@@ -74,7 +74,7 @@ export default function CreateRunPage() {
       }
 
       const run = (await res.json()) as Run;
-      router.push(`/runs/${run.sessionCode}/lobby`);
+      router.push(`/runs/${run.sessionCode}/feed`);
     } catch {
       setSubmitting(false);
     }
@@ -113,7 +113,7 @@ export default function CreateRunPage() {
               placeholder="Friday Run"
               maxLength={32}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.toUpperCase())}
               className={cn(
                 "h-12 w-full rounded-md border border-border bg-bg-surface",
                 "px-3.5 font-display text-[17px] font-bold tracking-[0.02em] uppercase text-text-primary placeholder:text-text-muted placeholder:font-semibold",
@@ -132,7 +132,7 @@ export default function CreateRunPage() {
               placeholder="Rucker Park"
               maxLength={32}
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => setLocation(e.target.value.toUpperCase())}
               className={cn(
                 "h-12 w-full rounded-md border border-border bg-bg-surface",
                 "px-3.5 font-display text-[17px] font-bold tracking-[0.02em] uppercase text-text-primary placeholder:text-text-muted placeholder:font-semibold",
