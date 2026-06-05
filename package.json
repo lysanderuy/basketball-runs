@@ -5,8 +5,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "supabase db push"
+    "db:migrate": "node tools/run-pg-migrate.mjs up",
+    "db:migrate:down": "node tools/run-pg-migrate.mjs down",
+    "db:migrate:create": "node tools/run-pg-migrate.mjs create",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.1",
@@ -30,12 +32,14 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
-    "drizzle-kit": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.21.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",

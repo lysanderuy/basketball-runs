@@ -1,11 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 // PATCH /api/runs/[code]/queue/[entryId] — update entry status or position
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ code: string; entryId: string }> },
-) {
-  void req;
-  void params;
-  return NextResponse.json({});
+export async function PATCH(): Promise<Response> {
+  return NextResponse.json({ error: "Not implemented" }, { status: 501 });
 }

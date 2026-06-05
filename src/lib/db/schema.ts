@@ -65,6 +65,8 @@ export const runs = pgTable(
     name: text("name").notNull(),
     location: text("location"),
     format: runFormat("format").notNull(),
+    scoreGoal: integer("score_goal").notNull().default(21),
+    timeLimitSeconds: integer("time_limit_seconds"),
     status: runStatus("status").notNull().default("lobby"),
     sessionCode: text("session_code").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
