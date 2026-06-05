@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { runs } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { runs, games } from "@/lib/db/schema";
+import { eq, count, desc } from "drizzle-orm";
 import type { CreateRunInput } from "@/lib/validations";
 import type { Run } from "@/types/db";
 
@@ -11,6 +11,24 @@ export async function getRunByCode(code: string) {
     .where(eq(runs.sessionCode, code))
     .limit(1);
   return run ?? null;
+}
+
+export async function getRunsByHostId(hostId: string) {
+  return db
+    .select({
+      id: runs.id,
+      name: runs.name,
+      location: runs.location,
+      status: runs.status,
+      sessionCode: runs.sessionCode,
+      createdAt: runs.createdAt,
+      gameCount: count(games.id),
+    })
+    .from(runs)
+    .leftJoin(games, eq(games.runId, runs.id))
+    .where(eq(runs.hostId, hostId))
+    .groupBy(runs.id)
+    .orderBy(desc(runs.createdAt));
 }
 
 export async function createRun(
