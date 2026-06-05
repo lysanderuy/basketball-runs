@@ -1,9 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getRunByCode, getGamesByRunId } from "@/services/runs";
 
-// GET  /api/runs/[code]/games — fetch all games for a run
-// POST /api/runs/[code]/games — create a new game with team assignment
-export async function GET(): Promise<Response> {
-  return NextResponse.json({ error: "Not implemented" }, { status: 501 });
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> },
+) {
+  void req;
+  const { code } = await params;
+  const run = await getRunByCode(code);
+  if (!run) {
+    return NextResponse.json({ error: "Run not found" }, { status: 404 });
+  }
+  const games = await getGamesByRunId(run.id);
+  return NextResponse.json(games);
 }
 
 export async function POST(): Promise<Response> {

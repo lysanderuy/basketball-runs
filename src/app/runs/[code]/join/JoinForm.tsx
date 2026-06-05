@@ -59,7 +59,7 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
       }
 
       localStorage.setItem(`ballruns_guest_${runCode}`, trimmed);
-      router.push(`/runs/${runCode}/lobby`);
+      router.push(`/runs/${runCode}/feed`);
     } catch {
       setNicknameError("Something went wrong. Please try again.");
     } finally {

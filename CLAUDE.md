@@ -20,23 +20,54 @@ This file governs every AI session in this repo. Read it fully before touching a
 
 ---
 
+## UI / Design Priorities
+
+This is a **mobile-first web app**. Players use it on their phones at the court.
+
+- **Always design for mobile first.** Tailwind: start with base (mobile) styles, add `md:`/`lg:` breakpoints only for desktop enhancement.
+- Touch targets minimum 44px. Tap-friendly spacing.
+- Bottom nav is the primary navigation — do not replace with sidebars or top-heavy layouts.
+- Avoid hover-only interactions — use tap/press states.
+- Desktop layout is a nice-to-have, not a requirement.
+
+---
+
 ## Project Structure
 
 ```
 app/
 ├── page.tsx                        Landing
-├── auth/                           Auth pages + server actions
-├── (protected)/                    Host-only pages — auth guard in layout.tsx
-├── runs/[code]/                    Run-scoped pages
-│   ├── layout.tsx                  Run shell — fetches run, provides context
-│   ├── lobby/
+├── auth/
+│   ├── login/
+│   └── signup/
+├── (protected)/                    Auth-guarded — middleware redirects guests
+│   ├── create-run/
+│   ├── history/                    All runs for the signed-in host
+│   └── account/
+├── runs/[code]/
+│   ├── layout.tsx                  Passthrough — no data fetch
+│   ├── join/                       Guest join flow
 │   ├── team-assignment/
 │   ├── results/
-│   └── (session)/                  Pages with bottom nav (game, queue, feed)
+│   └── (session)/                  Pages with bottom nav
+│       ├── layout.tsx              BottomNav wrapper
+│       ├── game/                   Live game management
+│       ├── queue/                  Queue view
+│       ├── feed/                   Run feed (game list)
+│       └── feed/[gameId]/          Single game detail
 └── api/                            All HTTP endpoints
     ├── auth/callback/
     ├── runs/
+    │   └── [code]/
+    │       ├── status/
+    │       ├── games/
+    │       │   └── [gameId]/
+    │       │       ├── clock/
+    │       │       └── score/
+    │       └── queue/
+    │           └── [entryId]/
     └── users/
+        └── me/
 
 lib/
 ├── db/
