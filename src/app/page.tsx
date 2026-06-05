@@ -312,6 +312,21 @@ export default function Home() {
             Start a Run
           </Link>
 
+          <div
+            className="flex items-center justify-center gap-1.5 animate-fade-up"
+            style={{ animationDelay: "0.24s" }}
+          >
+            <span className="font-body text-[13px] text-text-muted">
+              Already have an account?
+            </span>
+            <Link
+              href="/auth/login"
+              className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
+            >
+              Sign in
+            </Link>
+          </div>
+
         </div>
       </div>
     </div>
