@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createRunSchema } from "@/lib/validations";
-import { createRun, getRunsByHostId, getActiveRunByHostId } from "@/services/runs";
+import { createRun, getRunsForUser, getActiveRunByHostId } from "@/services/runs";
 
 export async function GET() {
   const supabase = await createClient();
@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userRuns = await getRunsByHostId(claimsData.claims.sub);
+  const userRuns = await getRunsForUser(claimsData.claims.sub);
   return NextResponse.json(userRuns);
 }
 
