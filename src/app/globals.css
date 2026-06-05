@@ -46,6 +46,15 @@
     padding: 0;
   }
 
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #1e2019 inset;
+    -webkit-text-fill-color: #f0f0e8;
+    caret-color: #f0f0e8;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
   html,
   body {
     height: 100%;

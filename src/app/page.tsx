@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, ChevronRight } from "lucide-react";
+import { signOut } from "@/app/auth/actions";
+import { Plus, ChevronRight, LogOut, User } from "lucide-react";
 
 type RunSummary = {
   id: string;
@@ -19,7 +21,7 @@ type RunSummary = {
 type AuthState =
   | { status: "loading" }
   | { status: "signed-out" }
-  | { status: "signed-in"; initials: string; runs: RunSummary[] };
+  | { status: "signed-in"; initials: string; email: string; runs: RunSummary[] };
 
 function deriveInitials(
   metadata: Record<string, unknown> | undefined,
@@ -62,7 +64,7 @@ export default function Home() {
       const initials = deriveInitials(user.user_metadata, user.email);
       const res = await fetch("/api/runs");
       const runs: RunSummary[] = res.ok ? await res.json() : [];
-      setAuth({ status: "signed-in", initials, runs });
+      setAuth({ status: "signed-in", initials, email: user.email ?? "", runs });
     }
     init();
   }, []);
@@ -112,11 +114,57 @@ export default function Home() {
             <br />
             Runs
           </h1>
-          {/* SIGNED-IN: user avatar */}
+          {/* SIGNED-IN: user avatar + menu */}
           {auth.status === "signed-in" && (
-            <div className="mt-1 w-[38px] h-[38px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[13px] font-extrabold tracking-[0.04em] text-accent">
-              {auth.initials}
-            </div>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="mt-1 w-[38px] h-[38px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[13px] font-extrabold tracking-[0.04em] text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors hover:bg-bg-surface">
+                  {auth.initials}
+                </button>
+              </DropdownMenu.Trigger>
+
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={8}
+                  className="z-50 min-w-[200px] rounded-md border border-border bg-bg-surface shadow-lg outline-none animate-fade-up"
+                >
+                  {/* User info header */}
+                  <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border">
+                    <div className="w-[30px] h-[30px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[11px] font-extrabold tracking-[0.04em] text-accent">
+                      {auth.initials}
+                    </div>
+                    <span className="font-body text-[12px] font-medium text-text-muted truncate">
+                      {auth.email}
+                    </span>
+                  </div>
+
+                  {/* Account link */}
+                  <DropdownMenu.Item asChild>
+                    <Link
+                      href="/account"
+                      className="flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 flex-shrink-0" />
+                      Account
+                    </Link>
+                  </DropdownMenu.Item>
+
+                  <DropdownMenu.Separator className="h-px bg-border mx-1" />
+
+                  {/* Sign out */}
+                  <DropdownMenu.Item asChild>
+                    <button
+                      onClick={() => signOut()}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-[#ff4040] hover:bg-[#ff4040]/10 outline-none cursor-pointer transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
+                      Sign Out
+                    </button>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           )}
         </div>
         <div className="w-12 h-0.5 bg-accent rounded-sm mt-2.5" />
@@ -127,7 +175,7 @@ export default function Home() {
 
       {/* ACTIONS */}
       <div className="flex-1 flex flex-col justify-end pb-12">
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-5">
 
           {/* SIGNED-IN: run cards */}
           {auth.status === "signed-in" && (
@@ -263,6 +311,21 @@ export default function Home() {
             <Plus className="w-4 h-4" />
             Start a Run
           </Link>
+
+          <div
+            className="flex items-center justify-center gap-1.5 animate-fade-up"
+            style={{ animationDelay: "0.24s" }}
+          >
+            <span className="font-body text-[13px] text-text-muted">
+              Already have an account?
+            </span>
+            <Link
+              href="/auth/login"
+              className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
+            >
+              Sign in
+            </Link>
+          </div>
 
         </div>
       </div>

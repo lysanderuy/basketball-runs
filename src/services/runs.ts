@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { runs, games } from "@/lib/db/schema";
-import { eq, count, desc } from "drizzle-orm";
+import { eq, count, desc, inArray, and } from "drizzle-orm";
 import type { CreateRunInput } from "@/lib/validations";
 import type { Run } from "@/types/db";
 
@@ -29,6 +29,15 @@ export async function getRunsByHostId(hostId: string) {
     .where(eq(runs.hostId, hostId))
     .groupBy(runs.id)
     .orderBy(desc(runs.createdAt));
+}
+
+export async function getActiveRunByHostId(hostId: string): Promise<Run | null> {
+  const [run] = await db
+    .select()
+    .from(runs)
+    .where(and(eq(runs.hostId, hostId), inArray(runs.status, ["lobby", "active"])))
+    .limit(1);
+  return run ?? null;
 }
 
 export async function createRun(
