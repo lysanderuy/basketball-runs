@@ -175,7 +175,7 @@ export default function Home() {
 
       {/* ACTIONS */}
       <div className="flex-1 flex flex-col justify-end pb-12">
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-5">
 
           {/* SIGNED-IN: run cards */}
           {auth.status === "signed-in" && (
