@@ -1,27 +1,8 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { getRunsForUser } from "@/services/runs";
+import HomeClient, { type HomeAuthState } from "./HomeClient";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { signOut } from "@/app/auth/actions";
-import { Plus, ChevronRight, LogOut, User } from "lucide-react";
-
-type RunSummary = {
-  id: string;
-  name: string;
-  location: string | null;
-  status: "lobby" | "active" | "completed";
-  sessionCode: string;
-  gameCount: number;
-};
-
-type AuthState =
-  | { status: "loading" }
-  | { status: "signed-out" }
-  | { status: "signed-in"; initials: string; email: string; runs: RunSummary[] };
+export const dynamic = "force-dynamic";
 
 function deriveInitials(
   metadata: Record<string, unknown> | undefined,
@@ -40,295 +21,32 @@ function deriveInitials(
   return (email ?? "").slice(0, 2).toUpperCase() || "??";
 }
 
-export default function Home() {
-  const router = useRouter();
-  const [code, setCode] = useState("");
-  const [auth, setAuth] = useState<AuthState>({ status: "loading" });
-  const inputRef = useRef<HTMLInputElement>(null);
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const stripped = code.replace("-", "");
-  const codeReady = stripped.length >= 6;
-
-  useEffect(() => {
-    const supabase = createClient();
-    async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setAuth({ status: "signed-out" });
-        return;
-      }
-
-      const initials = deriveInitials(user.user_metadata, user.email);
-      const res = await fetch("/api/runs");
-      const runs: RunSummary[] = res.ok ? await res.json() : [];
-      setAuth({ status: "signed-in", initials, email: user.email ?? "", runs });
-    }
-    init();
-  }, []);
-
-  function handleCodeChange(e: React.ChangeEvent<HTMLInputElement>) {
-    let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6);
-    if (val.length > 3) val = val.slice(0, 3) + "-" + val.slice(3);
-    setCode(val);
+  if (!user) {
+    return <HomeClient initialAuth={{ status: "signed-out" }} />;
   }
 
-  function handleJoin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!codeReady) {
-      const el = inputRef.current;
-      if (!el) return;
-      el.style.borderColor = "#ff4040";
-      el.style.animation = "";
-      void el.offsetWidth;
-      el.style.animation = "shake 0.4s ease-out";
-      setTimeout(() => {
-        el.style.borderColor = "";
-        el.style.animation = "";
-      }, 500);
-      return;
-    }
-    router.push(`/runs/${code}/join`);
-  }
+  const runs = await getRunsForUser(user.id);
+  const initials = deriveInitials(user.user_metadata, user.email);
 
-  const activeRun =
-    auth.status === "signed-in"
-      ? (auth.runs.find((r) => r.status === "active" || r.status === "lobby") ?? null)
-      : null;
+  const auth: HomeAuthState = {
+    status: "signed-in",
+    initials,
+    email: user.email ?? "",
+    runs: runs.map((r) => ({
+      id: r.id,
+      name: r.name,
+      location: r.location,
+      status: r.status,
+      sessionCode: r.sessionCode,
+      gameCount: r.gameCount,
+    })),
+  };
 
-  const completedCount =
-    auth.status === "signed-in"
-      ? auth.runs.filter((r) => r.status === "completed").length
-      : 0;
-
-  return (
-    <div className="app-shell px-5">
-
-      {/* WORDMARK */}
-      <div className="pt-14 flex flex-col gap-[2px] animate-fade-up">
-        <div className="flex items-start justify-between">
-          <h1 className="font-display text-[52px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
-            Ball
-            <br />
-            Runs
-          </h1>
-          {/* SIGNED-IN: user avatar + menu */}
-          {auth.status === "signed-in" && (
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className="mt-1 w-[38px] h-[38px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[13px] font-extrabold tracking-[0.04em] text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors hover:bg-bg-surface">
-                  {auth.initials}
-                </button>
-              </DropdownMenu.Trigger>
-
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  align="end"
-                  sideOffset={8}
-                  className="z-50 min-w-[200px] rounded-md border border-border bg-bg-surface shadow-lg outline-none animate-fade-up"
-                >
-                  {/* User info header */}
-                  <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border">
-                    <div className="w-[30px] h-[30px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[11px] font-extrabold tracking-[0.04em] text-accent">
-                      {auth.initials}
-                    </div>
-                    <span className="font-body text-[12px] font-medium text-text-muted truncate">
-                      {auth.email}
-                    </span>
-                  </div>
-
-                  {/* Account link */}
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      href="/account"
-                      className="flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
-                    >
-                      <User className="w-3.5 h-3.5 flex-shrink-0" />
-                      Account
-                    </Link>
-                  </DropdownMenu.Item>
-
-                  <DropdownMenu.Separator className="h-px bg-border mx-1" />
-
-                  {/* Sign out */}
-                  <DropdownMenu.Item asChild>
-                    <button
-                      onClick={() => signOut()}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-[#ff4040] hover:bg-[#ff4040]/10 outline-none cursor-pointer transition-colors"
-                    >
-                      <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
-                      Sign Out
-                    </button>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-          )}
-        </div>
-        <div className="w-12 h-0.5 bg-accent rounded-sm mt-2.5" />
-        <p className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted mt-2.5">
-          Run your game
-        </p>
-      </div>
-
-      {/* ACTIONS */}
-      <div className="flex-1 flex flex-col justify-end pb-12">
-        <div className="flex flex-col gap-5">
-
-          {/* SIGNED-IN: run cards */}
-          {auth.status === "signed-in" && (
-            <div
-              className="flex flex-col gap-2 mb-12 animate-fade-up"
-              style={{ animationDelay: "0.1s" }}
-            >
-              {/* Live card — only when an active/lobby run exists */}
-              {activeRun && (
-                <button
-                  onClick={() => router.push(`/runs/${activeRun.sessionCode}/feed`)}
-                  className="w-full flex flex-col gap-3 px-[18px] py-4 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04] hover:bg-accent/[0.08] transition-colors text-left"
-                >
-                  {/* Top row: live status + game count + chevron */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-[7px] h-[7px] rounded-full bg-[#3ddc84] flex-shrink-0 animate-live-pulse" />
-                      <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent-dim">
-                        Live
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-                        {activeRun.gameCount} {activeRun.gameCount === 1 ? "Game" : "Games"}
-                      </span>
-                      <ChevronRight className="w-4 h-4 text-text-muted" />
-                    </div>
-                  </div>
-                  {/* Bottom: run name + location */}
-                  <div className="flex flex-col gap-1">
-                    <span className="font-display text-[22px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
-                      {activeRun.name}
-                    </span>
-                    {activeRun.location && (
-                      <span className="font-body text-[12px] font-medium text-text-muted">
-                        {activeRun.location}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              )}
-
-              {/* Your Runs card — always shown when signed in */}
-              <button
-                onClick={() => alert("Goes to /runs")}
-                className="w-full flex items-center justify-between px-[18px] py-3 rounded-md border border-border bg-bg-surface hover:bg-bg-hover transition-colors text-left"
-              >
-                <div className="flex flex-col gap-[5px]">
-                  <span className="font-display text-[18px] font-extrabold tracking-[0.02em] uppercase text-text-secondary leading-none">
-                    Run History
-                  </span>
-                  <span className="font-display text-[12px] font-semibold tracking-[0.1em] uppercase text-text-muted">
-                    {completedCount} completed
-                  </span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
-              </button>
-            </div>
-          )}
-
-          {/* JOIN WITH CODE — always shown */}
-          {auth.status !== "loading" && (
-            <>
-              <div
-                className="flex flex-col gap-1.5 animate-fade-up"
-                style={{ animationDelay: "0.1s" }}
-              >
-                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
-                  Have a code?
-                </span>
-                <form onSubmit={handleJoin} className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    value={code}
-                    onChange={handleCodeChange}
-                    placeholder="ABC-123"
-                    maxLength={7}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    className={cn(
-                      "flex-1 min-w-0 h-13 bg-bg-surface border border-border rounded-md",
-                      "px-3.5",
-                      "font-display text-[20px] font-black tracking-[0.18em] text-text-primary uppercase",
-                      "outline-none transition-colors duration-150",
-                      "placeholder:text-text-muted placeholder:tracking-[0.12em] placeholder:font-bold placeholder:normal-case",
-                      "focus:border-border-accent focus:bg-bg-hover",
-                      "[caret-color:theme(colors.accent)]"
-                    )}
-                  />
-                  <button
-                    type="submit"
-                    className={cn(
-                      "h-13 px-5 rounded-md border flex-shrink-0",
-                      "font-display text-[14px] font-extrabold tracking-[0.1em] uppercase",
-                      "flex items-center transition-all duration-150",
-                      codeReady
-                        ? "bg-accent border-accent text-bg hover:-translate-y-px"
-                        : "bg-bg-surface border-border text-text-secondary hover:border-text-muted hover:text-text-primary"
-                    )}
-                  >
-                    Join
-                  </button>
-                </form>
-              </div>
-
-              {/* OR DIVIDER */}
-              <div
-                className="flex items-center gap-2.5 animate-fade-up"
-                style={{ animationDelay: "0.16s" }}
-              >
-                <div className="flex-1 h-px bg-border" />
-                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-                  or
-                </span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-            </>
-          )}
-
-          {/* START A RUN — always shown */}
-          <Link
-            href="/create-run"
-            className={cn(
-              "w-full h-14 rounded-md animate-fade-up",
-              "bg-accent text-bg",
-              "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
-              "flex items-center justify-center gap-2",
-              "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
-            )}
-            style={{ animationDelay: "0.2s" }}
-          >
-            <Plus className="w-4 h-4" />
-            Start a Run
-          </Link>
-
-          <div
-            className="flex items-center justify-center gap-1.5 animate-fade-up"
-            style={{ animationDelay: "0.24s" }}
-          >
-            <span className="font-body text-[13px] text-text-muted">
-              Already have an account?
-            </span>
-            <Link
-              href="/auth/login"
-              className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
-            >
-              Sign in
-            </Link>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  );
+  return <HomeClient initialAuth={auth} />;
 }
