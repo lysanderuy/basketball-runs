@@ -14,7 +14,6 @@ interface ProgressBarProps {
 export function ProgressBar({
   valueA,
   valueB,
-  goal,
   labelA,
   labelB,
   className,
