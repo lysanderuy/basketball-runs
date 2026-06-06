@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { queueEntries } from "@/lib/db/schema";
+import { queueEntries, games, gamePlayers } from "@/lib/db/schema";
 import { eq, and, ne } from "drizzle-orm";
+import type { QueueEntry } from "@/types/db";
 
 export async function joinQueue(
   runId: string,
@@ -39,5 +40,69 @@ export async function joinQueue(
     })
     .returning();
 
-  return entry;
+  return { entry, position: activeEntries.length + 1 };
+}
+
+export async function getQueueForRun(
+  runId: string,
+): Promise<{ onCourt: QueueEntry[]; waiting: QueueEntry[] }> {
+  const [allEntries, activeGame] = await Promise.all([
+    db
+      .select()
+      .from(queueEntries)
+      .where(and(eq(queueEntries.runId, runId), ne(queueEntries.status, "removed"))),
+    db
+      .select({ id: games.id })
+      .from(games)
+      .where(and(eq(games.runId, runId), eq(games.status, "active")))
+      .limit(1),
+  ]);
+
+  let onCourtIds = new Set<string>();
+  if (activeGame.length > 0) {
+    const players = await db
+      .select({ queueEntryId: gamePlayers.queueEntryId })
+      .from(gamePlayers)
+      .where(eq(gamePlayers.gameId, activeGame[0].id));
+    onCourtIds = new Set(players.map((p) => p.queueEntryId));
+  }
+
+  const entryMap = new Map<string, QueueEntry>(allEntries.map((e) => [e.id, e]));
+
+  const head = allEntries.find((e) => e.afterEntryId === null);
+  const ordered: QueueEntry[] = [];
+  const seen = new Set<string>();
+
+  if (head) {
+    let current: QueueEntry | undefined = head;
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      ordered.push(current);
+      const nextId = allEntries.find((e) => e.afterEntryId === current!.id);
+      current = nextId ? entryMap.get(nextId.id) : undefined;
+    }
+  }
+
+  for (const entry of allEntries) {
+    if (!seen.has(entry.id)) {
+      ordered.push(entry);
+    }
+  }
+
+  const onCourt = ordered.filter((e) => onCourtIds.has(e.id));
+  const waiting = ordered.filter((e) => !onCourtIds.has(e.id));
+
+  return { onCourt, waiting };
+}
+
+export async function updateQueueEntryStatus(
+  entryId: string,
+  status: "waiting" | "marked_out" | "removed",
+): Promise<QueueEntry | null> {
+  const [entry] = await db
+    .update(queueEntries)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(queueEntries.id, entryId))
+    .returning();
+  return entry ?? null;
 }
