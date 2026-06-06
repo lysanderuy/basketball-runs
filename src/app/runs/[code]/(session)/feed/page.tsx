@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Share2, Play } from "lucide-react";
+import { ChevronRight, Play } from "lucide-react";
+import { SessionTopbar } from "@/components/ui/session-topbar";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
 
@@ -70,40 +71,16 @@ export default function FeedPage() {
 
   return (
     <>
-      {/* TOPBAR */}
-      <div className="topbar">
-        <div className="flex flex-col gap-0.5">
-          {loading ? (
-            <>
-              <div className="h-[11px] w-20 bg-bg-hover rounded-sm animate-pulse" />
-              <div className="h-5 w-36 bg-bg-hover rounded-sm mt-0.5 animate-pulse" />
-            </>
-          ) : (
-            <>
-              <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted">
-                {run?.location ?? "Basketball Run"}
-              </span>
-              <span className="font-display text-[20px] font-black tracking-[0.02em] uppercase text-text-primary leading-none">
-                {run?.name ?? code}
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
-          >
-            <Share2 className="w-4 h-4" />
-          </button>
-          {activeGame && (
-            <div className="flex items-center gap-[5px] font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-live-pulse flex-shrink-0" />
-              Live
-            </div>
-          )}
-        </div>
-      </div>
+      <SessionTopbar
+        run={run}
+        loading={loading}
+        badge={activeGame ? (
+          <div className="flex items-center gap-[5px] font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-live-pulse flex-shrink-0" />
+            Live
+          </div>
+        ) : undefined}
+      />
 
       {/* SCROLLABLE FEED */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pb-8">

@@ -6,7 +6,7 @@ export default function SessionLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="app-shell">
+    <div className="app-shell h-dvh overflow-hidden">
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {children}
       </div>
