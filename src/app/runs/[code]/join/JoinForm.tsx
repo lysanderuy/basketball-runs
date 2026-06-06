@@ -1,19 +1,15 @@
 "use client";
 
-import { useState, useActionState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { signIn } from "@/app/auth/actions";
 
 interface Props {
   runCode: string;
   runName: string;
   currentUser: { id: string; displayName: string | null } | null;
 }
-
-type Step = "select" | "nickname";
 
 const inputClass = cn(
   "w-full h-13 bg-bg-surface border border-border rounded-md",
@@ -24,22 +20,26 @@ const inputClass = cn(
   "focus:border-border-accent focus:bg-bg-hover"
 );
 
-export default function JoinForm({ runCode, runName, currentUser }: Props) {
-  const router = useRouter();
-  const [step, setStep] = useState<Step>("select");
-  const [nickname, setNickname] = useState("");
-  const [nicknameError, setNicknameError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [signInState, signInAction, isSigningIn] = useActionState(signIn, null);
+function ordinal(n: number) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
-  async function handleGuestSubmit(e: React.FormEvent) {
+export default function JoinForm({ runCode, runName, currentUser }: Props) {
+  const [name, setName] = useState(currentUser?.displayName ?? "");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [joined, setJoined] = useState<{ displayName: string; position: number } | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = nickname.trim();
+    const trimmed = name.trim();
     if (!trimmed) {
-      setNicknameError("Nickname is required");
+      setError("Name is required");
       return;
     }
-    setNicknameError("");
+    setError("");
     setIsSubmitting(true);
 
     try {
@@ -54,98 +54,109 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
         const msg =
           body.error?.formErrors?.[0] ??
           (typeof body.error === "string" ? body.error : "Failed to join. Try again.");
-        setNicknameError(msg);
+        setError(msg);
         return;
       }
 
-      localStorage.setItem(`ballruns_guest_${runCode}`, trimmed);
-      router.push(`/runs/${runCode}/feed`);
+      const data = await res.json();
+      if (!currentUser) {
+        localStorage.setItem(`ballruns_guest_${runCode}`, trimmed);
+      }
+      setJoined({ displayName: trimmed, position: data.position });
     } catch {
-      setNicknameError("Something went wrong. Please try again.");
+      setError("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // ── Nickname step ────────────────────────────────────────────────────────────
-  if (step === "nickname") {
+  if (joined) {
+    const ahead = joined.position - 1;
+    const isFirst = joined.position === 1;
+
     return (
       <div className="app-shell px-5">
-        <div className="pt-14 flex flex-col gap-[2px] animate-fade-up">
-          <button
-            onClick={() => setStep("select")}
-            className="mb-5 flex items-center gap-1.5 w-fit font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted hover:text-text-secondary transition-colors"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-3.5 h-3.5"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Back
-          </button>
-
-          <h1 className="font-display text-[52px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
-            Your
-            <br />
-            Name
-          </h1>
-          <div className="w-12 h-0.5 bg-accent rounded-sm mt-2.5" />
-          <p className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted mt-2.5">
-            How should we call you?
-          </p>
+        {/* Top context bar */}
+        <div
+          className="pt-10 flex items-center justify-between animate-fade-up"
+          style={{ animationDelay: "0s" }}
+        >
+          <span className="font-display text-[11px] font-bold tracking-[0.16em] uppercase text-text-muted">
+            {runName}
+          </span>
+          <span className="font-display text-[11px] font-bold tracking-[0.16em] uppercase text-accent">
+            You&apos;re in
+          </span>
         </div>
 
-        <div className="flex-1 flex flex-col justify-end pb-12">
-          <form onSubmit={handleGuestSubmit} className="flex flex-col gap-3">
-            <div
-              className="flex flex-col gap-1.5 animate-fade-up"
-              style={{ animationDelay: "0.1s" }}
-            >
-              <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
-                Nickname
-              </label>
-              <input
-                value={nickname}
-                onChange={(e) => {
-                  setNickname(e.target.value);
-                  setNicknameError("");
-                }}
-                autoFocus
-                maxLength={50}
-                className={inputClass}
-                placeholder="e.g. Kobe"
-              />
-            </div>
+        {/* Hero */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <span
+            className="font-display text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted mb-3 animate-fade-up"
+            style={{ animationDelay: "0.06s" }}
+          >
+            Queue position
+          </span>
 
-            {nicknameError && (
-              <p className="font-body text-[13px] text-danger animate-slide-in">
-                {nicknameError}
-              </p>
+          {/* Number with glow */}
+          <div
+            className="relative flex items-center justify-center animate-fade-up"
+            style={{ animationDelay: "0.12s" }}
+          >
+            <div className="absolute w-56 h-40 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+            <span
+              className={cn(
+                "relative font-display font-black tracking-[-0.02em] leading-none",
+                "text-[96px]",
+                isFirst ? "text-accent" : "text-text-primary"
+              )}
+            >
+              {ordinal(joined.position)}
+            </span>
+          </div>
+
+          {/* Status line */}
+          <span
+            className={cn(
+              "font-display text-[16px] font-black tracking-[0.08em] uppercase leading-none mt-3 animate-fade-up",
+              isFirst ? "text-accent" : "text-text-secondary"
             )}
+            style={{ animationDelay: "0.18s" }}
+          >
+            {isFirst
+              ? "Next up"
+              : `${ahead} ${ahead === 1 ? "player" : "players"} ahead`}
+          </span>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full animate-fade-up"
-              style={{ animationDelay: "0.16s" }}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Joining…" : "Join Run"}
+          {/* Divider + name */}
+          <div
+            className="mt-10 w-full border-t border-border pt-5 flex items-center justify-center gap-2 animate-fade-up"
+            style={{ animationDelay: "0.24s" }}
+          >
+            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+              Playing as
+            </span>
+            <span className="font-display text-[13px] font-black tracking-[0.08em] uppercase text-text-primary">
+              {joined.displayName}
+            </span>
+          </div>
+        </div>
+
+        {/* Bottom CTA */}
+        <div
+          className="pb-12 animate-fade-up"
+          style={{ animationDelay: "0.30s" }}
+        >
+          <Link href={`/runs/${runCode}/queue`}>
+            <Button variant="primary" size="lg" className="w-full">
+              View Queue
             </Button>
-          </form>
+          </Link>
         </div>
       </div>
     );
   }
 
-  // ── Select step ──────────────────────────────────────────────────────────────
   return (
     <div className="app-shell px-5">
       <div className="pt-14 flex flex-col gap-[2px] animate-fade-up">
@@ -155,141 +166,68 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
         <h1 className="font-display text-[52px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
           Join
           <br />
-          Run
+          Queue
         </h1>
         <div className="w-12 h-0.5 bg-accent rounded-sm mt-2.5" />
         <p className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted mt-2.5">
-          {currentUser
-            ? `Signed in as ${currentUser.displayName ?? "you"}`
-            : "Sign in or continue as guest"}
+          Enter your name to get in line
         </p>
       </div>
 
       <div className="flex-1 flex flex-col justify-end pb-12">
-        {currentUser ? (
-          // Already signed in
-          <div className="flex flex-col gap-3">
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full animate-fade-up"
-              onClick={() => router.push(`/runs/${runCode}/lobby`)}
-            >
-              Continue as {currentUser.displayName ?? "me"}
-            </Button>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div
+            className="flex flex-col gap-1.5 animate-fade-up"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
+              Name
+            </label>
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError("");
+              }}
+              autoFocus
+              maxLength={50}
+              className={inputClass}
+              placeholder="e.g. Kobe"
+            />
+          </div>
 
+          {error && (
+            <p className="font-body text-[13px] text-danger animate-slide-in">
+              {error}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            className="w-full animate-fade-up"
+            style={{ animationDelay: "0.16s" }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Joining…" : "Join Queue"}
+          </Button>
+
+          {!currentUser && (
             <p
               className="text-center font-body text-[13px] text-text-muted animate-fade-up"
-              style={{ animationDelay: "0.1s" }}
+              style={{ animationDelay: "0.22s" }}
             >
-              Not you?{" "}
+              Already have an account?{" "}
               <Link
                 href={`/auth/login?next=/runs/${runCode}/join`}
                 className="font-semibold text-text-secondary underline underline-offset-2 decoration-border hover:text-text-primary transition-colors"
               >
-                Sign in as someone else
+                Sign in
               </Link>
             </p>
-          </div>
-        ) : (
-          // Not signed in — show sign-in form + guest option
-          <div className="flex flex-col gap-3">
-            <form action={signInAction} className="flex flex-col gap-3">
-              <input
-                type="hidden"
-                name="next"
-                value={`/runs/${runCode}/lobby`}
-              />
-
-              <div
-                className="flex flex-col gap-1.5 animate-fade-up"
-                style={{ animationDelay: "0.1s" }}
-              >
-                <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
-                  Email
-                </label>
-                <input
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className={inputClass}
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div
-                className="flex flex-col gap-1.5 animate-fade-up"
-                style={{ animationDelay: "0.16s" }}
-              >
-                <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
-                  Password
-                </label>
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className={inputClass}
-                  placeholder="••••••••"
-                />
-              </div>
-
-              {signInState?.error && (
-                <p className="font-body text-[13px] text-danger animate-slide-in">
-                  {signInState.error}
-                </p>
-              )}
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full animate-fade-up"
-                style={{ animationDelay: "0.22s" }}
-                disabled={isSigningIn}
-              >
-                {isSigningIn ? "Signing in…" : "Sign In"}
-              </Button>
-            </form>
-
-            <div
-              className="flex items-center gap-3 animate-fade-up"
-              style={{ animationDelay: "0.28s" }}
-            >
-              <div className="flex-1 h-px bg-border" />
-              <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-                or
-              </span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            <Button
-              variant="secondary"
-              size="lg"
-              className="w-full animate-fade-up"
-              style={{ animationDelay: "0.34s" }}
-              onClick={() => setStep("nickname")}
-            >
-              Continue as Guest
-            </Button>
-
-            <div
-              className="flex items-center justify-center gap-1.5 animate-fade-up"
-              style={{ animationDelay: "0.4s" }}
-            >
-              <span className="font-body text-[13px] text-text-muted">
-                Don&apos;t have an account?
-              </span>
-              <Link
-                href={`/auth/signup?next=/runs/${runCode}/lobby`}
-                className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border hover:text-text-primary transition-colors"
-              >
-                Sign up
-              </Link>
-            </div>
-          </div>
-        )}
+          )}
+        </form>
       </div>
     </div>
   );
