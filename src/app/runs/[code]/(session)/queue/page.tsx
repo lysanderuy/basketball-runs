@@ -6,14 +6,7 @@ import { Ban, MoreVertical, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
 import { createClient } from "@/lib/supabase/client";
 import { useQueueRealtime } from "@/hooks/useQueueRealtime";
-
-type RunData = {
-  id: string;
-  hostId: string;
-  name: string;
-  location: string | null;
-  sessionCode: string;
-};
+import type { Run } from "@/types/db";
 
 type QueueEntry = {
   id: string;
@@ -38,12 +31,13 @@ type CtxMenu = {
 export default function QueuePage() {
   const { code } = useParams<{ code: string }>();
 
-  const [run, setRun] = useState<RunData | null>(null);
+  const [run, setRun] = useState<Run | null>(null);
   const [queue, setQueue] = useState<QueueData>({ onCourt: [], waiting: [] });
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addName, setAddName] = useState("");
+  const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [mutating, setMutating] = useState<Set<string>>(new Set());
@@ -72,12 +66,11 @@ export default function QueuePage() {
 
   const onCourtCount = queue.onCourt.length;
   const waitingCount = queue.waiting.filter((e) => e.status === "waiting").length;
-  const outCount = queue.waiting.filter((e) => e.status === "marked_out").length;
   const totalCount = onCourtCount + queue.waiting.length;
 
   async function handleStatusUpdate(entryId: string, status: "waiting" | "marked_out" | "removed") {
     setMutating((prev) => new Set(prev).add(entryId));
-    await fetch(`/api/runs/${code}/queue/${entryId}`, {
+    const res = await fetch(`/api/runs/${code}/queue/${entryId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -87,20 +80,26 @@ export default function QueuePage() {
       next.delete(entryId);
       return next;
     });
+    if (!res.ok) load();
   }
 
   async function handleAddPlayer() {
     const name = addName.trim();
     if (!name || adding) return;
     setAdding(true);
-    await fetch(`/api/runs/${code}/queue`, {
+    setAddError("");
+    const res = await fetch(`/api/runs/${code}/queue`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ displayName: name }),
     });
+    setAdding(false);
+    if (!res.ok) {
+      setAddError("Failed to add player. Try again.");
+      return;
+    }
     setAddName("");
     setShowAddForm(false);
-    setAdding(false);
   }
 
   function openCtxMenu(e: React.MouseEvent<HTMLButtonElement>, entry: QueueEntry) {
@@ -275,7 +274,7 @@ export default function QueuePage() {
         <>
           <div
             className="fixed inset-0 z-[98] bg-black/60 backdrop-blur-sm"
-            onClick={() => { setShowAddForm(false); setAddName(""); }}
+            onClick={() => { setShowAddForm(false); setAddName(""); setAddError(""); }}
           />
           <div className="fixed inset-0 z-[99] flex items-center justify-center px-5">
             <div className="bg-bg-raised border border-border rounded-xl px-5 pt-5 pb-5 w-full max-w-[440px] animate-fade-up">
@@ -285,7 +284,7 @@ export default function QueuePage() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => { setShowAddForm(false); setAddName(""); }}
+                  onClick={() => { setShowAddForm(false); setAddName(""); setAddError(""); }}
                   className="w-8 h-8 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-muted transition-colors hover:border-text-muted hover:text-text-primary"
                 >
                   <X className="w-4 h-4" />
@@ -297,7 +296,7 @@ export default function QueuePage() {
                   autoFocus
                   type="text"
                   value={addName}
-                  onChange={(e) => setAddName(e.target.value)}
+                  onChange={(e) => { setAddName(e.target.value); setAddError(""); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleAddPlayer();
                     if (e.key === "Escape") { setShowAddForm(false); setAddName(""); }
@@ -316,6 +315,10 @@ export default function QueuePage() {
                   </button>
                 )}
               </div>
+
+              {addError && (
+                <p className="font-body text-[13px] text-danger mb-3 animate-slide-in">{addError}</p>
+              )}
 
               <button
                 type="button"

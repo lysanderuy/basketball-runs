@@ -28,11 +28,15 @@ export const reorderQueueSchema = z.object({
 
 export type ReorderQueueInput = z.infer<typeof reorderQueueSchema>;
 
-export const updateQueueEntryStatusSchema = z.object({
-  status: z.enum(["waiting", "marked_out", "removed"]),
-});
+// Combined PATCH schema — accepts either a status update OR a sittingOut toggle.
+// Used by the queue-entry PATCH route so both the queue page (status) and the
+// team-assignment page (sittingOut) can share the same endpoint.
+export const queueEntryPatchSchema = z.union([
+  z.object({ status: z.enum(["waiting", "marked_out", "removed"]) }),
+  z.object({ sittingOut: z.boolean() }),
+]);
 
-export type UpdateQueueEntryStatusInput = z.infer<typeof updateQueueEntryStatusSchema>;
+export type QueueEntryPatchInput = z.infer<typeof queueEntryPatchSchema>;
 
 // ─── Games ────────────────────────────────────────────────────────────────────
 
