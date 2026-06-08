@@ -7,14 +7,7 @@ import { ChevronRight, Play } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
-
-type RunData = {
-  id: string;
-  hostId: string;
-  name: string;
-  location: string | null;
-  sessionCode: string;
-};
+import type { Run } from "@/types/db";
 
 type GameData = {
   id: string;
@@ -44,7 +37,7 @@ export default function FeedPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
 
-  const [run, setRun] = useState<RunData | null>(null);
+  const [run, setRun] = useState<Run | null>(null);
   const [games, setGames] = useState<GameData[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,7 +117,9 @@ export default function FeedPage() {
                   Game {activeGame.gameNumber} · In progress
                 </span>
                 <span className="font-display text-[14px] font-black tracking-[0.06em] text-accent leading-none">
-                  12:47
+                  {activeGame.startedAt
+                    ? formatTime(Math.round((Date.now() - new Date(activeGame.startedAt).getTime()) / 1000))
+                    : "—"}
                 </span>
               </div>
 
@@ -137,7 +132,7 @@ export default function FeedPage() {
                     className="font-display font-black leading-[0.88] tracking-[-0.02em] text-text-primary select-none"
                     style={{ fontSize: "clamp(52px, 14vw, 72px)" }}
                   >
-                    14
+                    {activeGame.scoreA}
                   </span>
                   <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                     to {activeGame.scoreGoal}
@@ -156,7 +151,7 @@ export default function FeedPage() {
                     className="font-display font-black leading-[0.88] tracking-[-0.02em] text-text-primary select-none"
                     style={{ fontSize: "clamp(52px, 14vw, 72px)" }}
                   >
-                    11
+                    {activeGame.scoreB}
                   </span>
                   <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                     to {activeGame.scoreGoal}
@@ -167,11 +162,11 @@ export default function FeedPage() {
               <div className="h-[3px] bg-bg-hover rounded-sm flex gap-0.5">
                 <div
                   className="h-full rounded-l-sm bg-accent"
-                  style={{ width: "calc(14 / 21 * 47%)" }}
+                  style={{ width: `calc(${activeGame.scoreA} / ${activeGame.scoreGoal} * 47%)` }}
                 />
                 <div
                   className="h-full rounded-r-sm bg-text-secondary"
-                  style={{ width: "calc(11 / 21 * 47%)" }}
+                  style={{ width: `calc(${activeGame.scoreB} / ${activeGame.scoreGoal} * 47%)` }}
                 />
               </div>
 

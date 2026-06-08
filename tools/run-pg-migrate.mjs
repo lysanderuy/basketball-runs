@@ -27,17 +27,17 @@ if (!databaseUrl) {
 
 const [, , command = 'up', ...passThroughArgs] = process.argv;
 const migrationsDir = resolve(repoRoot, 'db', 'migrations');
-const isWin = process.platform === 'win32';
-const cliPath = resolve(
-  repoRoot,
-  'node_modules',
-  '.bin',
-  isWin ? 'node-pg-migrate.cmd' : 'node-pg-migrate'
-);
+
+// Resolve the JS entry point directly instead of the .cmd/.sh wrapper.
+// On Windows, spawnSync cannot execute .cmd files without going through cmd.exe,
+// and paths containing spaces break cmd.exe argument splitting. Invoking node
+// directly with the JS file bypasses both problems entirely.
+const migrateBin = resolve(repoRoot, 'node_modules', 'node-pg-migrate', 'bin', 'node-pg-migrate.js');
 
 const defaultCommandArgs = command === 'up' ? ['--create-schema'] : [];
 
 const cliArgs = [
+  migrateBin,
   command,
   '--migrations-dir', migrationsDir,
   '--schema', 'public',
@@ -46,7 +46,7 @@ const cliArgs = [
   ...passThroughArgs,
 ];
 
-const result = spawnSync(cliPath, cliArgs, {
+const result = spawnSync(process.execPath, cliArgs, {
   stdio: 'inherit',
   env: { ...process.env, DATABASE_URL: databaseUrl },
 });

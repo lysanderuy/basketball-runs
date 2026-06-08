@@ -96,6 +96,24 @@ export default {
           "60%": { transform: "translateX(-4px)" },
           "80%": { transform: "translateX(4px)" },
         },
+        "move-flash": {
+          "0%": { background: "rgba(200, 241, 53, 0.2)", borderColor: "#c8f135" },
+          "100%": { background: "#1e2019", borderColor: "#2a2c22" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(24px)" },
+          to:   { opacity: "1", transform: "translateY(0)" },
+        },
+        "arrival-glow": {
+          "0%":   { background: "rgba(200, 241, 53, 0.30)", borderColor: "#c8f135", transform: "scale(1.03)" },
+          "45%":  { background: "rgba(200, 241, 53, 0.10)", borderColor: "rgba(200, 241, 53, 0.65)", transform: "scale(1.0)" },
+          "100%": { background: "#1e2019", borderColor: "#2a2c22", transform: "scale(1.0)" },
+        },
+        "remove-flash": {
+          "0%":   { background: "rgba(255, 64, 64, 0.18)", borderColor: "rgba(255, 64, 64, 0.75)", opacity: "1" },
+          "70%":  { background: "rgba(255, 64, 64, 0.12)", borderColor: "rgba(255, 64, 64, 0.5)",  opacity: "0.7" },
+          "100%": { background: "rgba(255, 64, 64, 0.0)",  borderColor: "rgba(255, 64, 64, 0.0)",  opacity: "0" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.3s ease-out both",
@@ -105,6 +123,10 @@ export default {
         "score-flash": "score-flash 0.5s ease-out",
         "slide-in": "slide-in 0.2s ease-out",
         shake: "shake 0.4s ease-out",
+        "move-flash": "move-flash 0.35s ease-out",
+        "slide-up":    "slide-up 0.22s ease-out",
+        "arrival-glow": "arrival-glow 0.7s ease-out",
+        "remove-flash": "remove-flash 0.22s ease-out forwards",
       },
     },
   },

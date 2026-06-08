@@ -67,20 +67,16 @@ export async function getQueueForRun(
     onCourtIds = new Set(players.map((p) => p.queueEntryId));
   }
 
-  const entryMap = new Map<string, QueueEntry>(allEntries.map((e) => [e.id, e]));
+  const nextMap = new Map(allEntries.map((e) => [e.afterEntryId, e]));
 
-  const head = allEntries.find((e) => e.afterEntryId === null);
+  let current = nextMap.get(null);
   const ordered: QueueEntry[] = [];
   const seen = new Set<string>();
 
-  if (head) {
-    let current: QueueEntry | undefined = head;
-    while (current && !seen.has(current.id)) {
-      seen.add(current.id);
-      ordered.push(current);
-      const nextId = allEntries.find((e) => e.afterEntryId === current!.id);
-      current = nextId ? entryMap.get(nextId.id) : undefined;
-    }
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    ordered.push(current);
+    current = nextMap.get(current.id);
   }
 
   for (const entry of allEntries) {
@@ -102,6 +98,18 @@ export async function updateQueueEntryStatus(
   const [entry] = await db
     .update(queueEntries)
     .set({ status, updatedAt: new Date() })
+    .where(eq(queueEntries.id, entryId))
+    .returning();
+  return entry ?? null;
+}
+
+export async function updateQueueEntrySittingOut(
+  entryId: string,
+  sittingOut: boolean,
+): Promise<QueueEntry | null> {
+  const [entry] = await db
+    .update(queueEntries)
+    .set({ sittingOut, updatedAt: new Date() })
     .where(eq(queueEntries.id, entryId))
     .returning();
   return entry ?? null;
