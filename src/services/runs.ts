@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { runs, games, gamePlayers, queueEntries } from "@/lib/db/schema";
-import { eq, count, desc, inArray, and, or, sql } from "drizzle-orm";
+import { runs, games, gamePlayers, queueEntries, scoreEvents } from "@/lib/db/schema";
+import { eq, count, desc, inArray, and, or, sql, isNull } from "drizzle-orm";
 import type { CreateRunInput } from "@/lib/validations";
 import type { Run, Game } from "@/types/db";
 
@@ -140,6 +140,53 @@ export async function createGame(
 
     return game;
   });
+}
+
+export async function getGameWithBreakdown(gameId: string) {
+  const [game] = await db.select().from(games).where(eq(games.id, gameId)).limit(1);
+  if (!game) return null;
+
+  const players = await db
+    .select({
+      queueEntryId: gamePlayers.queueEntryId,
+      team: gamePlayers.team,
+      displayName: queueEntries.displayName,
+    })
+    .from(gamePlayers)
+    .innerJoin(queueEntries, eq(gamePlayers.queueEntryId, queueEntries.id))
+    .where(eq(gamePlayers.gameId, gameId));
+
+  const pointRows = await db
+    .select({
+      queueEntryId: scoreEvents.queueEntryId,
+      points: count(scoreEvents.id),
+    })
+    .from(scoreEvents)
+    .where(and(eq(scoreEvents.gameId, gameId), isNull(scoreEvents.voidedAt)))
+    .groupBy(scoreEvents.queueEntryId);
+
+  const pointMap = new Map(pointRows.map((r) => [r.queueEntryId, r.points]));
+
+  const teamA = players
+    .filter((p) => p.team === "team_a")
+    .map((p) => ({ displayName: p.displayName, points: pointMap.get(p.queueEntryId) ?? 0 }))
+    .sort((a, b) => b.points - a.points);
+
+  const teamB = players
+    .filter((p) => p.team === "team_b")
+    .map((p) => ({ displayName: p.displayName, points: pointMap.get(p.queueEntryId) ?? 0 }))
+    .sort((a, b) => b.points - a.points);
+
+  return { game, teamA, teamB };
+}
+
+export async function updateRunStatus(runId: string, status: "lobby" | "active" | "completed"): Promise<Run | null> {
+  const [updated] = await db
+    .update(runs)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(runs.id, runId))
+    .returning();
+  return updated ?? null;
 }
 
 export async function createRun(
