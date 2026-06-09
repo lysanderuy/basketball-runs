@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { runs, games, gamePlayers, queueEntries, scoreEvents } from "@/lib/db/schema";
-import { eq, count, desc, inArray, and, or, sql, isNull, ne } from "drizzle-orm";
+import { eq, count, desc, inArray, and, or, sql, isNull } from "drizzle-orm";
 import type { CreateRunInput } from "@/lib/validations";
 import type { Run, Game, ScoreEvent } from "@/types/db";
 
@@ -297,8 +297,8 @@ export async function recordScore(
           ...(updated.clockStartedAt && !updated.clockPausedAt ? { clockPausedAt: new Date() } : {}),
         })
         .where(eq(games.id, gameId));
-
-      await rotateQueue(tx, gameId, game.runId, winner);
+      // Queue rotation is handled by the trg_rotate_queue_on_game_complete
+      // trigger that fires on this status → 'completed' transition.
     }
 
     return event;
@@ -374,47 +374,6 @@ export async function clockAction(
   return updated;
 }
 
-// ─── Queue rotation ───────────────────────────────────────────────────────────
-
-async function rotateQueue(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  gameId: string,
-  runId: string,
-  winner: "team_a" | "team_b" | "tie",
-) {
-  const [run] = await tx.select({ format: runs.format }).from(runs).where(eq(runs.id, runId)).limit(1);
-  if (!run || run.format === "host_decides") return;
-
-  const players = await tx
-    .select({ queueEntryId: gamePlayers.queueEntryId, team: gamePlayers.team })
-    .from(gamePlayers)
-    .where(eq(gamePlayers.gameId, gameId));
-
-  let idsToRotate: string[];
-  if (run.format === "new_ten" || winner === "tie") {
-    idsToRotate = players.map((p) => p.queueEntryId);
-  } else {
-    // winner_stays — rotate only the losing team
-    idsToRotate = players.filter((p) => p.team !== winner).map((p) => p.queueEntryId);
-  }
-
-  if (idsToRotate.length === 0) return;
-
-  const [{ maxPos }] = await tx
-    .select({ maxPos: sql<number>`COALESCE(MAX(${queueEntries.position}), 0)` })
-    .from(queueEntries)
-    .where(and(eq(queueEntries.runId, runId), ne(queueEntries.status, "removed")));
-
-  let nextPosition = (maxPos ?? 0) + 1;
-  for (const id of idsToRotate) {
-    await tx
-      .update(queueEntries)
-      .set({ position: nextPosition, updatedAt: new Date() })
-      .where(eq(queueEntries.id, id));
-    nextPosition++;
-  }
-}
-
 // ─── End game ─────────────────────────────────────────────────────────────────
 
 export async function endGame(gameId: string, runId: string): Promise<Game> {
@@ -452,8 +411,8 @@ export async function endGame(gameId: string, runId: string): Promise<Game> {
       })
       .where(eq(games.id, gameId))
       .returning();
-
-    await rotateQueue(tx, gameId, game.runId, winner);
+    // Queue rotation is handled by the trg_rotate_queue_on_game_complete
+    // trigger that fires on this status → 'completed' transition.
 
     return updated;
   });
