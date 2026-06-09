@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
@@ -16,10 +16,22 @@ type GameData = {
   scoreGoal: number;
   scoreA: number;
   scoreB: number;
-  winner: "team_a" | "team_b" | null;
+  winner: "team_a" | "team_b" | "tie" | null;
+  timeLimitSeconds: number | null;
+  clockStartedAt: string | null;
+  clockPausedAt: string | null;
+  totalPausedSeconds: number;
   startedAt: string | null;
   endedAt: string | null;
 };
+
+function getRemainingTime(game: GameData): number {
+  if (!game.clockStartedAt || game.timeLimitSeconds === null) return 0;
+  const startMs = new Date(game.clockStartedAt).getTime();
+  const endMs = game.clockPausedAt ? new Date(game.clockPausedAt).getTime() : Date.now();
+  const elapsed = Math.max(0, Math.floor((endMs - startMs) / 1000) - game.totalPausedSeconds);
+  return Math.max(0, game.timeLimitSeconds - elapsed);
+}
 
 function gameDuration(startedAt: string | null, endedAt: string | null): string {
   if (!startedAt || !endedAt) return "—";
@@ -27,9 +39,10 @@ function gameDuration(startedAt: string | null, endedAt: string | null): string 
   return formatTime(Math.round(ms / 1000));
 }
 
-function winnerLabel(winner: "team_a" | "team_b" | null): string {
+function winnerLabel(winner: "team_a" | "team_b" | "tie" | null): string {
   if (winner === "team_a") return "Runs won";
   if (winner === "team_b") return "Next won";
+  if (winner === "tie") return "Tie game";
   return "—";
 }
 
@@ -41,32 +54,120 @@ export default function FeedPage() {
   const [games, setGames] = useState<GameData[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastScorer, setLastScorer] = useState<string | null>(null);
+
+  const supabaseRef = useRef(createClient());
+  const lastScorerGenRef = useRef(0);
+
+  const loadGames = useCallback(async () => {
+    const res = await fetch(`/api/runs/${code}/games`);
+    if (res.ok) setGames(await res.json());
+  }, [code]);
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = supabaseRef.current;
     async function load() {
-      const [{ data: { session } }, runRes, gamesRes] = await Promise.all([
+      const [{ data: { session } }, runRes] = await Promise.all([
         supabase.auth.getSession(),
         fetch(`/api/runs/${code}`),
-        fetch(`/api/runs/${code}/games`),
       ]);
       setUserId(session?.user?.id ?? null);
       if (runRes.ok) setRun(await runRes.json());
-      if (gamesRes.ok) setGames(await gamesRes.json());
+      await loadGames();
       setLoading(false);
     }
     load();
-  }, [code]);
+  }, [code, loadGames]);
+
+  // Live updates for games in this run
+  useEffect(() => {
+    if (!run) return;
+    const supabase = supabaseRef.current;
+    const channel = supabase
+      .channel(`feed-${run.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "games", filter: `run_id=eq.${run.id}` },
+        () => loadGames(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "games", filter: `run_id=eq.${run.id}` },
+        (payload) => {
+          // Apply payload directly — avoids concurrent-fetch race condition where
+          // a slower older fetch resolves after a newer one and overwrites state.
+          const r = payload.new as Record<string, unknown>;
+          setGames((prev) =>
+            prev.map((g) =>
+              g.id === r.id
+                ? {
+                    ...g,
+                    status: r.status as GameData["status"],
+                    scoreA: r.score_a as number,
+                    scoreB: r.score_b as number,
+                    winner: r.winner as GameData["winner"],
+                    timeLimitSeconds: r.time_limit_seconds as number | null,
+                    clockStartedAt: r.clock_started_at as string | null,
+                    clockPausedAt: r.clock_paused_at as string | null,
+                    totalPausedSeconds: r.total_paused_seconds as number,
+                    startedAt: r.started_at as string | null,
+                    endedAt: r.ended_at as string | null,
+                  }
+                : g,
+            ),
+          );
+        },
+      )
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED" && status !== "CLOSED") {
+          console.error(`Realtime channel feed-${run.id} failed:`, status);
+        }
+      });
+    return () => { supabase.removeChannel(channel); };
+  }, [run?.id, loadGames]);
 
   const isHost = !!userId && !!run && userId === run.hostId;
-  const activeGame = games.find((g) => g.status === "active") ?? null;
+  const activeGame = games.find((g) => g.status === "active" || g.status === "pending") ?? null;
   const completedGames = games.filter((g) => g.status === "completed");
+
+  // Score updates + last scorer for the active game
+  useEffect(() => {
+    const gameId = activeGame?.id;
+    if (!gameId) return;
+    const supabase = supabaseRef.current;
+    const channel = supabase
+      .channel(`feed-scores-${gameId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "score_events", filter: `game_id=eq.${gameId}` },
+        async () => {
+          const gen = ++lastScorerGenRef.current;
+          const res = await fetch(`/api/runs/${code}/games/${gameId}`);
+          if (res.ok) {
+            const details = await res.json();
+            if (lastScorerGenRef.current !== gen) return; // stale response
+            const last = details.recentEvents?.[0];
+            if (last) setLastScorer(last.displayName);
+          }
+        },
+      )
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED" && status !== "CLOSED") {
+          console.error(`Realtime channel feed-scores-${gameId} failed:`, status);
+        }
+      });
+    return () => {
+      supabase.removeChannel(channel);
+      setLastScorer(null);
+    };
+  }, [activeGame?.id, code]);
 
   return (
     <>
       <SessionTopbar
         run={run}
         loading={loading}
+        exitHref={!loading && userId !== null ? "/" : undefined}
         badge={activeGame ? (
           <div className="flex items-center gap-[5px] font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-live-pulse flex-shrink-0" />
@@ -116,11 +217,11 @@ export default function FeedPage() {
                 <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
                   Game {activeGame.gameNumber} · In progress
                 </span>
-                <span className="font-display text-[14px] font-black tracking-[0.06em] text-accent leading-none">
-                  {activeGame.startedAt
-                    ? formatTime(Math.round((Date.now() - new Date(activeGame.startedAt).getTime()) / 1000))
-                    : "—"}
-                </span>
+                {activeGame.timeLimitSeconds !== null && (
+                  <span className="font-display text-[14px] font-black tracking-[0.06em] text-accent leading-none">
+                    {activeGame.clockStartedAt ? formatTime(getRemainingTime(activeGame)) : "—"}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 mb-3">
@@ -184,7 +285,7 @@ export default function FeedPage() {
                 <div className="flex items-center gap-1.5 mt-2.5">
                   <div className="w-[5px] h-[5px] rounded-full flex-shrink-0 bg-accent" />
                   <span className="font-display text-[12px] font-semibold tracking-[0.04em] text-text-muted flex-1">
-                    Marcus scored
+                    {lastScorer ? `${lastScorer} scored` : "Live now"}
                   </span>
                   <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                     Tap to watch →
