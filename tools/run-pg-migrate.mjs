@@ -35,7 +35,7 @@ const cliPath = resolve(
   isWin ? 'node-pg-migrate.cmd' : 'node-pg-migrate'
 );
 
-const defaultCommandArgs = command === 'up' ? ['--create-schema'] : [];
+const defaultCommandArgs = command === 'up' ? ['--create-schema', '--check-order=false'] : [];
 
 const cliArgs = [
   command,
@@ -48,6 +48,7 @@ const cliArgs = [
 
 const result = spawnSync(cliPath, cliArgs, {
   stdio: 'inherit',
+  shell: isWin,
   env: { ...process.env, DATABASE_URL: databaseUrl },
 });
 
