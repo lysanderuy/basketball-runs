@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
-import { runs, games, gamePlayers, queueEntries } from "@/lib/db/schema";
-import { eq, count, desc, inArray, and, or, sql } from "drizzle-orm";
+import { runs, games, gamePlayers, queueEntries, scoreEvents } from "@/lib/db/schema";
+import { eq, count, desc, inArray, and, or, sql, isNull, ne } from "drizzle-orm";
 import type { CreateRunInput } from "@/lib/validations";
-import type { Run, Game } from "@/types/db";
+import type { Run, Game, ScoreEvent } from "@/types/db";
 
 export async function getRunByCode(code: string) {
   const [run] = await db
@@ -11,24 +11,6 @@ export async function getRunByCode(code: string) {
     .where(eq(runs.sessionCode, code))
     .limit(1);
   return run ?? null;
-}
-
-export async function getRunsByHostId(hostId: string) {
-  return db
-    .select({
-      id: runs.id,
-      name: runs.name,
-      location: runs.location,
-      status: runs.status,
-      sessionCode: runs.sessionCode,
-      createdAt: runs.createdAt,
-      gameCount: count(games.id),
-    })
-    .from(runs)
-    .leftJoin(games, eq(games.runId, runs.id))
-    .where(eq(runs.hostId, hostId))
-    .groupBy(runs.id)
-    .orderBy(desc(runs.createdAt));
 }
 
 export async function getRunsForUser(userId: string) {
@@ -87,6 +69,13 @@ export class InvalidEntryIdsError extends Error {
   }
 }
 
+export class OngoingGameError extends Error {
+  constructor() {
+    super("A game is already in progress for this run");
+    this.name = "OngoingGameError";
+  }
+}
+
 export async function createGame(
   runId: string,
   teamAEntryIds: string[],
@@ -113,6 +102,13 @@ export async function createGame(
     // same run queue behind each other rather than reading the same MAX and
     // colliding on the uq_games_run_id_game_number constraint.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${runId}))`);
+
+    const [ongoing] = await tx
+      .select({ id: games.id })
+      .from(games)
+      .where(and(eq(games.runId, runId), or(eq(games.status, "pending"), eq(games.status, "active"))))
+      .limit(1);
+    if (ongoing) throw new OngoingGameError();
 
     const [{ maxNum }] = await tx
       .select({ maxNum: sql<number>`COALESCE(MAX(${games.gameNumber}), 0)` })
@@ -142,13 +138,304 @@ export async function createGame(
   });
 }
 
+export async function closeRun(runId: string): Promise<Run> {
+  const [updated] = await db
+    .update(runs)
+    .set({ status: "completed" })
+    .where(eq(runs.id, runId))
+    .returning();
+  if (!updated) throw new Error("Run not found");
+  return updated;
+}
+
 export async function createRun(
   input: CreateRunInput & { hostId: string }
 ): Promise<Run> {
-  const { hostId, name, location, format, sessionCode, scoreGoal, timeLimitSeconds } = input;
+  const { hostId, name, location, format, sessionCode, scoreGoal, pointSystem, timeLimitSeconds } = input;
   const [run] = await db
     .insert(runs)
-    .values({ hostId, name, location, format, sessionCode, scoreGoal, timeLimitSeconds })
+    .values({ hostId, name, location, format, sessionCode, scoreGoal, pointSystem, timeLimitSeconds })
     .returning();
   return run;
+}
+
+// ─── Game detail types ────────────────────────────────────────────────────────
+
+export type PlayerWithStats = {
+  queueEntryId: string;
+  displayName: string;
+  team: "team_a" | "team_b";
+  points: number;
+};
+
+export type ScoreEventEntry = {
+  id: string;
+  queueEntryId: string;
+  displayName: string;
+  team: "team_a" | "team_b";
+  points: number;
+  createdAt: string;
+};
+
+export type GameWithDetails = {
+  game: Game;
+  players: PlayerWithStats[];
+  recentEvents: ScoreEventEntry[];
+};
+
+// ─── Game detail query ────────────────────────────────────────────────────────
+
+export async function getGameWithDetails(gameId: string): Promise<GameWithDetails | null> {
+  const [game] = await db.select().from(games).where(eq(games.id, gameId)).limit(1);
+  if (!game) return null;
+
+  const [playerRows, recentRows] = await Promise.all([
+    db
+      .select({
+        queueEntryId: gamePlayers.queueEntryId,
+        displayName: queueEntries.displayName,
+        team: gamePlayers.team,
+        points: sql<number>`COALESCE(SUM(${scoreEvents.points}), 0)`,
+      })
+      .from(gamePlayers)
+      .innerJoin(queueEntries, eq(queueEntries.id, gamePlayers.queueEntryId))
+      .leftJoin(
+        scoreEvents,
+        and(
+          eq(scoreEvents.queueEntryId, gamePlayers.queueEntryId),
+          eq(scoreEvents.gameId, gameId),
+          isNull(scoreEvents.voidedAt),
+        ),
+      )
+      .where(eq(gamePlayers.gameId, gameId))
+      .groupBy(gamePlayers.queueEntryId, queueEntries.displayName, gamePlayers.team),
+
+    db
+      .select({
+        id: scoreEvents.id,
+        queueEntryId: scoreEvents.queueEntryId,
+        displayName: queueEntries.displayName,
+        team: scoreEvents.team,
+        points: scoreEvents.points,
+        createdAt: scoreEvents.createdAt,
+      })
+      .from(scoreEvents)
+      .innerJoin(queueEntries, eq(queueEntries.id, scoreEvents.queueEntryId))
+      .where(and(eq(scoreEvents.gameId, gameId), isNull(scoreEvents.voidedAt)))
+      .orderBy(desc(scoreEvents.createdAt))
+      .limit(10),
+  ]);
+
+  return {
+    game,
+    players: playerRows.map((r) => ({
+      queueEntryId: r.queueEntryId,
+      displayName: r.displayName,
+      team: r.team,
+      points: Number(r.points),
+    })),
+    recentEvents: recentRows.map((r) => ({
+      id: r.id,
+      queueEntryId: r.queueEntryId,
+      displayName: r.displayName,
+      team: r.team,
+      points: r.points,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  };
+}
+
+// ─── Scoring ──────────────────────────────────────────────────────────────────
+
+export async function recordScore(
+  gameId: string,
+  queueEntryId: string,
+  team: "team_a" | "team_b",
+  points: number,
+): Promise<ScoreEvent> {
+  return db.transaction(async (tx) => {
+    const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1);
+    if (!game) throw new Error("Game not found");
+    if (game.status === "completed") throw new Error("Game is already completed");
+
+    if (game.status === "pending") {
+      await tx
+        .update(games)
+        .set({ status: "active", startedAt: new Date() })
+        .where(eq(games.id, gameId));
+    }
+
+    const [event] = await tx
+      .insert(scoreEvents)
+      .values({ gameId, queueEntryId, team, points })
+      .returning();
+
+    // Re-read to get trigger-updated scores and auto-complete if goal reached
+    const [updated] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1);
+    if (updated.scoreA >= updated.scoreGoal || updated.scoreB >= updated.scoreGoal) {
+      let winner: "team_a" | "team_b" | "tie";
+      if (updated.scoreA > updated.scoreB) winner = "team_a";
+      else if (updated.scoreB > updated.scoreA) winner = "team_b";
+      else winner = "tie";
+      await tx
+        .update(games)
+        .set({
+          status: "completed",
+          winner,
+          endedAt: new Date(),
+          ...(updated.clockStartedAt && !updated.clockPausedAt ? { clockPausedAt: new Date() } : {}),
+        })
+        .where(eq(games.id, gameId));
+
+      await rotateQueue(tx, gameId, game.runId, winner);
+    }
+
+    return event;
+  });
+}
+
+export async function undoLastScore(gameId: string): Promise<ScoreEvent | null> {
+  const [event] = await db
+    .select()
+    .from(scoreEvents)
+    .where(and(eq(scoreEvents.gameId, gameId), isNull(scoreEvents.voidedAt)))
+    .orderBy(desc(scoreEvents.createdAt))
+    .limit(1);
+
+  if (!event) return null;
+
+  const [updated] = await db
+    .update(scoreEvents)
+    .set({ voidedAt: new Date() })
+    .where(eq(scoreEvents.id, event.id))
+    .returning();
+
+  return updated;
+}
+
+// ─── Clock ────────────────────────────────────────────────────────────────────
+
+export async function clockAction(
+  gameId: string,
+  action: "start" | "pause" | "resume",
+): Promise<Game> {
+  const [game] = await db.select().from(games).where(eq(games.id, gameId)).limit(1);
+  if (!game) throw new Error("Game not found");
+
+  const now = new Date();
+
+  if (action === "start") {
+    const [updated] = await db
+      .update(games)
+      .set({ clockStartedAt: now, status: "active", startedAt: game.startedAt ?? now })
+      .where(eq(games.id, gameId))
+      .returning();
+    return updated;
+  }
+
+  if (action === "pause") {
+    const [updated] = await db
+      .update(games)
+      .set({ clockPausedAt: now })
+      .where(eq(games.id, gameId))
+      .returning();
+    return updated;
+  }
+
+  // resume
+  const pausedMs = game.clockPausedAt ? now.getTime() - game.clockPausedAt.getTime() : 0;
+  const [updated] = await db
+    .update(games)
+    .set({
+      clockPausedAt: null,
+      totalPausedSeconds: game.totalPausedSeconds + Math.floor(pausedMs / 1000),
+    })
+    .where(eq(games.id, gameId))
+    .returning();
+  return updated;
+}
+
+// ─── Queue rotation ───────────────────────────────────────────────────────────
+
+async function rotateQueue(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  gameId: string,
+  runId: string,
+  winner: "team_a" | "team_b" | "tie",
+) {
+  const [run] = await tx.select({ format: runs.format }).from(runs).where(eq(runs.id, runId)).limit(1);
+  if (!run || run.format === "host_decides") return;
+
+  const players = await tx
+    .select({ queueEntryId: gamePlayers.queueEntryId, team: gamePlayers.team })
+    .from(gamePlayers)
+    .where(eq(gamePlayers.gameId, gameId));
+
+  let idsToRotate: string[];
+  if (run.format === "new_ten" || winner === "tie") {
+    idsToRotate = players.map((p) => p.queueEntryId);
+  } else {
+    // winner_stays — rotate only the losing team
+    idsToRotate = players.filter((p) => p.team !== winner).map((p) => p.queueEntryId);
+  }
+
+  if (idsToRotate.length === 0) return;
+
+  const [{ maxPos }] = await tx
+    .select({ maxPos: sql<number>`COALESCE(MAX(${queueEntries.position}), 0)` })
+    .from(queueEntries)
+    .where(and(eq(queueEntries.runId, runId), ne(queueEntries.status, "removed")));
+
+  let nextPosition = (maxPos ?? 0) + 1;
+  for (const id of idsToRotate) {
+    await tx
+      .update(queueEntries)
+      .set({ position: nextPosition, updatedAt: new Date() })
+      .where(eq(queueEntries.id, id));
+    nextPosition++;
+  }
+}
+
+// ─── End game ─────────────────────────────────────────────────────────────────
+
+export async function endGame(gameId: string): Promise<Game> {
+  return db.transaction(async (tx) => {
+    // Row lock on the game so a concurrent recordScore (whose trigger takes
+    // the same row lock) blocks until we commit, and its updates are visible
+    // in our subsequent read.
+    const [game] = await tx
+      .select()
+      .from(games)
+      .where(eq(games.id, gameId))
+      .limit(1)
+      .for("update");
+    if (!game) throw new Error("Game not found");
+    if (game.status === "completed") return game;
+
+    // Per-run advisory lock — same key as createGame — so a concurrent
+    // createGame for the same run queues behind us and cannot insert a new
+    // game row for a run we are about to close.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${game.runId}))`);
+
+    const now = new Date();
+    let winner: "team_a" | "team_b" | "tie";
+    if (game.scoreA > game.scoreB) winner = "team_a";
+    else if (game.scoreB > game.scoreA) winner = "team_b";
+    else winner = "tie";
+
+    const [updated] = await tx
+      .update(games)
+      .set({
+        status: "completed",
+        winner,
+        endedAt: now,
+        ...(game.clockStartedAt && !game.clockPausedAt ? { clockPausedAt: now } : {}),
+      })
+      .where(eq(games.id, gameId))
+      .returning();
+
+    await rotateQueue(tx, gameId, game.runId, winner);
+
+    return updated;
+  });
 }
