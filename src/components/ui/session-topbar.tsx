@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Share2, X, Check, Copy } from "lucide-react";
+import { Share2, X, Check, Copy, MoreVertical, Flag } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface SessionTopbarProps {
   run: { name: string; location: string | null; sessionCode: string } | null;
   loading: boolean;
   badge?: React.ReactNode;
+  exitHref?: string;
+  onEndGame?: () => void;
 }
 
-export function SessionTopbar({ run, loading, badge }: SessionTopbarProps) {
+export function SessionTopbar({ run, loading, badge, exitHref, onEndGame }: SessionTopbarProps) {
   const [showShare, setShowShare] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState("");
 
@@ -32,7 +35,7 @@ export function SessionTopbar({ run, loading, badge }: SessionTopbarProps) {
   return (
     <>
       <div className="topbar">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
           {loading ? (
             <>
               <div className="h-[11px] w-20 bg-bg-hover rounded-sm animate-pulse" />
@@ -40,30 +43,71 @@ export function SessionTopbar({ run, loading, badge }: SessionTopbarProps) {
             </>
           ) : (
             <>
-              <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted">
+              <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted truncate">
                 {run?.location ?? "Basketball Run"}
               </span>
-              <span className="font-display text-[20px] font-black tracking-[0.02em] uppercase text-text-primary leading-none">
+              <span className="font-display text-[20px] font-black tracking-[0.02em] uppercase text-text-primary leading-none truncate">
                 {run?.name ?? "—"}
               </span>
             </>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowShare(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
-          >
-            <Share2 className="w-4 h-4" />
-          </button>
-          <Link
-            href="/history"
-            className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
-          >
-            <X className="w-4 h-4" />
-          </Link>
+        <div className="flex items-center gap-2 flex-shrink-0">
           {badge}
+          {onEndGame ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowMenu((v) => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+              {showMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[200]"
+                    onClick={() => setShowMenu(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1.5 z-[201] bg-bg-raised border border-border rounded-lg overflow-hidden shadow-lg min-w-[160px]">
+                    <button
+                      type="button"
+                      onClick={() => { setShowMenu(false); setShowShare(true); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                    >
+                      <Share2 className="w-4 h-4 flex-shrink-0" />
+                      <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">Share</span>
+                    </button>
+                    <div className="h-px bg-border mx-3" />
+                    <button
+                      type="button"
+                      onClick={() => { setShowMenu(false); onEndGame(); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-[#ff6060] hover:bg-danger/[0.08] transition-colors"
+                    >
+                      <Flag className="w-4 h-4 flex-shrink-0" />
+                      <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">End Game</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowShare(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          )}
+          {exitHref && (
+            <Link
+              href={exitHref}
+              className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
+            >
+              <X className="w-4 h-4" />
+            </Link>
+          )}
         </div>
       </div>
 
