@@ -59,9 +59,6 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
       }
 
       const data = await res.json();
-      if (!currentUser) {
-        localStorage.setItem(`ballruns_guest_${runCode}`, trimmed);
-      }
       setJoined({ displayName: trimmed, position: data.position });
     } catch {
       setError("Something went wrong. Please try again.");
@@ -159,7 +156,17 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
 
   return (
     <div className="app-shell px-5">
-      <div className="pt-14 flex flex-col gap-[2px] animate-fade-up">
+      <div className="pt-4 flex items-center">
+        <Link
+          href="/"
+          className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-all hover:border-accent-dim hover:text-accent hover:bg-accent-glow"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </Link>
+      </div>
+      <div className="pt-8 flex flex-col gap-[2px] animate-fade-up">
         <p className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent mb-1">
           {runName}
         </p>

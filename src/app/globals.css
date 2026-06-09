@@ -97,6 +97,8 @@
     padding: 16px 20px 12px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    position: relative;
+    z-index: 50;
     animation: fade-up 0.3s 0.00s ease-out both;
   }
 

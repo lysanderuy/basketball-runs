@@ -37,6 +37,8 @@ export default function TeamAssignmentPage() {
   const [loading,        setLoading]        = useState(true);
   const [scrambling,     setScrambling]     = useState(false);
   const [justMovedId,    setJustMovedId]    = useState<string | null>(null);
+  const [confirming,     setConfirming]     = useState(false);
+  const [confirmError,   setConfirmError]   = useState<string | null>(null);
 
   // Drag
   const [dragId,     setDragId]     = useState<string | null>(null);
@@ -329,7 +331,32 @@ export default function TeamAssignmentPage() {
   }
 
   // ─── Confirm ──────────────────────────────────────────────────────────────────
-  // Wired up when in-game page is implemented.
+
+  async function confirmTeams() {
+    if (confirming || teams.a.length === 0 || teams.b.length === 0) return;
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch(`/api/runs/${code}/games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamA: teams.a.map((p) => p.id),
+          teamB: teams.b.map((p) => p.id),
+        }),
+      });
+      if (!res.ok) {
+        if (res.status === 409) {
+          setConfirmError("A game is already in progress. End it before starting a new one.");
+        }
+        setConfirming(false);
+        return;
+      }
+      router.push(`/runs/${code}/game`);
+    } catch {
+      setConfirming(false);
+    }
+  }
 
   // ─── Derived ──────────────────────────────────────────────────────────────────
 
@@ -568,14 +595,25 @@ export default function TeamAssignmentPage() {
           )}
         </button>
 
-        <button
-          type="button"
-          disabled
-          className="flex-1 h-[52px] rounded-md bg-accent text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center gap-2 opacity-40 cursor-not-allowed"
-        >
-          <Check className="w-4 h-4" strokeWidth={2.5} />
-          Confirm teams
-        </button>
+        <div className="flex-1 flex flex-col gap-1">
+          {confirmError && (
+            <p className="font-display text-[11px] font-bold tracking-[0.05em] text-warning text-center">{confirmError}</p>
+          )}
+          <button
+            type="button"
+            onClick={confirmTeams}
+            disabled={confirming || teams.a.length === 0 || teams.b.length === 0}
+            className={[
+              "w-full h-[52px] rounded-md bg-accent text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center gap-2 transition-opacity",
+              confirming || teams.a.length === 0 || teams.b.length === 0
+                ? "opacity-40 cursor-not-allowed"
+                : "hover:opacity-90 active:opacity-75",
+            ].join(" ")}
+          >
+            <Check className="w-4 h-4" strokeWidth={2.5} />
+            {confirming ? "Starting…" : "Confirm teams"}
+          </button>
+        </div>
       </div>
 
       {/* UNDO TOAST */}

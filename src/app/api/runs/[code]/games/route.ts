@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, getGamesByRunId, createGame, InvalidEntryIdsError } from "@/services/runs";
+import { getRunByCode, getGamesByRunId, createGame, InvalidEntryIdsError, OngoingGameError } from "@/services/runs";
 import { createGameSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,6 +47,9 @@ export async function POST(
     const game = await createGame(run.id, result.data.teamA, result.data.teamB);
     return NextResponse.json(game, { status: 201 });
   } catch (err) {
+    if (err instanceof OngoingGameError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
     if (err instanceof InvalidEntryIdsError) {
       return NextResponse.json({ error: err.message }, { status: 422 });
     }

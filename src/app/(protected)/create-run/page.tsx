@@ -8,6 +8,7 @@ import { cn, generateRunCode } from "@/lib/utils";
 import type { Run } from "@/types/db";
 
 type Format = "winner_stays" | "new_ten";
+type PointSystem = "one_two" | "two_three";
 
 const TIME_OPTIONS = [
   { label: "10 min", value: 600 },
@@ -25,6 +26,7 @@ export default function CreateRunPage() {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [format, setFormat] = useState<Format>("new_ten");
+  const [pointSystem, setPointSystem] = useState<PointSystem>("two_three");
   const [scoreGoal, setScoreGoal] = useState(21);
   const [scoreAnimating, setScoreAnimating] = useState(false);
   const [timeLimitOn, setTimeLimitOn] = useState(false);
@@ -51,33 +53,29 @@ export default function CreateRunPage() {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
 
-    const sessionCode = generateRunCode();
     const payload = {
       name: name.trim(),
       location: location.trim(),
       format,
       scoreGoal,
-      sessionCode,
+      pointSystem,
+      sessionCode: generateRunCode(),
       ...(timeLimitOn ? { timeLimitSeconds: selectedTimeSeconds } : {}),
     };
 
-    try {
-      const res = await fetch("/api/runs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+    const res = await fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      if (!res.ok) {
-        setSubmitting(false);
-        return;
-      }
-
-      const run = (await res.json()) as Run;
-      router.push(`/runs/${run.sessionCode}/feed`);
-    } catch {
+    if (!res.ok) {
       setSubmitting(false);
+      return;
     }
+
+    const run = (await res.json()) as Run;
+    router.push(`/runs/${run.sessionCode}/feed`);
   };
 
   const CloseButton = (
@@ -167,6 +165,40 @@ export default function CreateRunPage() {
                 )}
               >
                 {format === opt.value && (
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Point system */}
+        <div className="flex flex-col gap-1.5">
+          <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            Point System
+          </label>
+          <div className="flex gap-2">
+            {(
+              [
+                { value: "one_two" as const, label: "1s & 2s" },
+                { value: "two_three" as const, label: "2s & 3s" },
+              ] as { value: PointSystem; label: string }[]
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPointSystem(opt.value)}
+                className={cn(
+                  "flex-1 h-10 rounded-md border font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
+                  "flex items-center justify-center gap-1.5",
+                  pointSystem === opt.value
+                    ? "border-border-accent bg-accent-glow text-accent"
+                    : "border-border bg-bg-surface text-text-secondary hover:border-text-muted hover:text-text-primary"
+                )}
+              >
+                {pointSystem === opt.value && (
                   <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>

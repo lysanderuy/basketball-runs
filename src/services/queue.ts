@@ -1,46 +1,33 @@
 import { db } from "@/lib/db";
 import { queueEntries, games, gamePlayers } from "@/lib/db/schema";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, sql, inArray, asc } from "drizzle-orm";
 import type { QueueEntry } from "@/types/db";
 
 export async function joinQueue(
   runId: string,
   displayName: string,
-  userId?: string | null
+  userId?: string | null,
 ) {
-  const activeEntries = await db
-    .select({ id: queueEntries.id, afterEntryId: queueEntries.afterEntryId })
-    .from(queueEntries)
-    .where(
-      and(
-        eq(queueEntries.runId, runId),
-        ne(queueEntries.status, "removed")
-      )
-    );
+  return db.transaction(async (tx) => {
+    // Per-run advisory lock (two-int4 space — distinct from the game-creation lock)
+    // Serializes concurrent joins so two callers can't both read the same max position
+    // and produce a duplicate.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${runId}), 2)`);
 
-  // Find the tail: entry whose ID is not referenced by any other entry's afterEntryId
-  let tailId: string | null = null;
-  if (activeEntries.length > 0) {
-    const referenced = new Set(
-      activeEntries
-        .filter((e) => e.afterEntryId !== null)
-        .map((e) => e.afterEntryId as string)
-    );
-    const tail = activeEntries.find((e) => !referenced.has(e.id));
-    tailId = tail?.id ?? null;
-  }
+    const [{ maxPos }] = await tx
+      .select({ maxPos: sql<number>`COALESCE(MAX(${queueEntries.position}), 0)` })
+      .from(queueEntries)
+      .where(eq(queueEntries.runId, runId));
 
-  const [entry] = await db
-    .insert(queueEntries)
-    .values({
-      runId,
-      userId: userId ?? null,
-      displayName,
-      afterEntryId: tailId,
-    })
-    .returning();
+    const newPosition = (maxPos ?? 0) + 1;
 
-  return { entry, position: activeEntries.length + 1 };
+    const [entry] = await tx
+      .insert(queueEntries)
+      .values({ runId, userId: userId ?? null, displayName, position: newPosition })
+      .returning();
+
+    return { entry, position: newPosition };
+  });
 }
 
 export async function getQueueForRun(
@@ -50,7 +37,8 @@ export async function getQueueForRun(
     db
       .select()
       .from(queueEntries)
-      .where(and(eq(queueEntries.runId, runId), ne(queueEntries.status, "removed"))),
+      .where(and(eq(queueEntries.runId, runId), ne(queueEntries.status, "removed")))
+      .orderBy(asc(queueEntries.position)),
     db
       .select({ id: games.id })
       .from(games)
@@ -67,26 +55,36 @@ export async function getQueueForRun(
     onCourtIds = new Set(players.map((p) => p.queueEntryId));
   }
 
-  const nextMap = new Map(allEntries.map((e) => [e.afterEntryId, e]));
+  // Compute actual games played from completed games (denormalized column is stale)
+  const entryIds = allEntries.map((e) => e.id);
+  const gamesPlayedMap = new Map<string, number>();
+  if (entryIds.length > 0) {
+    const counts = await db
+      .select({
+        queueEntryId: gamePlayers.queueEntryId,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(gamePlayers)
+      .innerJoin(games, eq(games.id, gamePlayers.gameId))
+      .where(
+        and(
+          inArray(gamePlayers.queueEntryId, entryIds),
+          eq(games.status, "completed"),
+        ),
+      )
+      .groupBy(gamePlayers.queueEntryId);
 
-  let current = nextMap.get(null);
-  const ordered: QueueEntry[] = [];
-  const seen = new Set<string>();
-
-  while (current && !seen.has(current.id)) {
-    seen.add(current.id);
-    ordered.push(current);
-    current = nextMap.get(current.id);
-  }
-
-  for (const entry of allEntries) {
-    if (!seen.has(entry.id)) {
-      ordered.push(entry);
+    for (const row of counts) {
+      gamesPlayedMap.set(row.queueEntryId, Number(row.count));
     }
   }
 
-  const onCourt = ordered.filter((e) => onCourtIds.has(e.id));
-  const waiting = ordered.filter((e) => !onCourtIds.has(e.id));
+  for (const entry of allEntries) {
+    entry.gamesPlayed = gamesPlayedMap.get(entry.id) ?? 0;
+  }
+
+  const onCourt = allEntries.filter((e) => onCourtIds.has(e.id));
+  const waiting = allEntries.filter((e) => !onCourtIds.has(e.id));
 
   return { onCourt, waiting };
 }

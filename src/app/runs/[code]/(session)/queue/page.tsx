@@ -13,7 +13,6 @@ type QueueEntry = {
   displayName: string;
   status: "waiting" | "marked_out" | "removed";
   gamesPlayed: number;
-  afterEntryId: string | null;
 };
 
 type QueueData = {
@@ -80,7 +79,7 @@ export default function QueuePage() {
       next.delete(entryId);
       return next;
     });
-    if (!res.ok) load();
+    load();
   }
 
   async function handleAddPlayer() {
@@ -100,6 +99,7 @@ export default function QueuePage() {
     }
     setAddName("");
     setShowAddForm(false);
+    load();
   }
 
   function openCtxMenu(e: React.MouseEvent<HTMLButtonElement>, entry: QueueEntry) {
@@ -118,6 +118,7 @@ export default function QueuePage() {
       <SessionTopbar
         run={run}
         loading={loading}
+        exitHref={!loading && userId !== null ? "/" : undefined}
         badge={onCourtCount > 0 ? (
           <div className="flex items-center gap-[5px] font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-live-pulse flex-shrink-0" />

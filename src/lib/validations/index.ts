@@ -7,6 +7,7 @@ export const createRunSchema = z.object({
   location: z.string().max(100).optional(),
   format: z.enum(["winner_stays", "new_ten", "host_decides"]),
   scoreGoal: z.number().int().min(1).max(100),
+  pointSystem: z.enum(["one_two", "two_three"]),
   timeLimitSeconds: z.number().int().min(60).max(3600).optional(),
   sessionCode: z.string().regex(/^[A-Z0-9]{3}-[A-Z0-9]{3}$/),
 });
@@ -20,13 +21,6 @@ export const joinRunSchema = z.object({
 });
 
 export type JoinRunInput = z.infer<typeof joinRunSchema>;
-
-export const reorderQueueSchema = z.object({
-  entryId: z.string().uuid(),
-  afterEntryId: z.string().uuid().nullable(),
-});
-
-export type ReorderQueueInput = z.infer<typeof reorderQueueSchema>;
 
 // Combined PATCH schema — accepts either a status update OR a sittingOut toggle.
 // Used by the queue-entry PATCH route so both the queue page (status) and the
@@ -58,6 +52,7 @@ export type ClockActionInput = z.infer<typeof clockActionSchema>;
 export const scorePointSchema = z.object({
   queueEntryId: z.string().uuid(),
   team: z.enum(["team_a", "team_b"]),
+  points: z.number().int().min(1).max(10),
 });
 
 export type ScorePointInput = z.infer<typeof scorePointSchema>;

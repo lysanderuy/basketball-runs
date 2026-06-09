@@ -10,9 +10,10 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
+
+export const runPointSystem = pgEnum("run_point_system", ["one_two", "two_three"]);
 
 export const runFormat = pgEnum("run_format", [
   "winner_stays",
@@ -34,7 +35,7 @@ export const gameStatus = pgEnum("game_status", [
 
 export const gameTeam = pgEnum("game_team", ["team_a", "team_b"]);
 
-export const gameWinner = pgEnum("game_winner", ["team_a", "team_b"]);
+export const gameWinner = pgEnum("game_winner", ["team_a", "team_b", "tie"]);
 
 export const queueEntryStatus = pgEnum("queue_entry_status", [
   "waiting",
@@ -67,6 +68,7 @@ export const runs = pgTable(
     location: text("location"),
     format: runFormat("format").notNull(),
     scoreGoal: integer("score_goal").notNull().default(21),
+    pointSystem: runPointSystem("point_system").notNull().default("two_three"),
     timeLimitSeconds: integer("time_limit_seconds"),
     status: runStatus("status").notNull().default("lobby"),
     sessionCode: text("session_code").notNull(),
@@ -89,11 +91,8 @@ export const queueEntries = pgTable(
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     displayName: text("display_name").notNull(),
     status: queueEntryStatus("status").notNull().default("waiting"),
-    // Linked-list pointer — NULL = head of queue
-    afterEntryId: uuid("after_entry_id").references(
-      (): AnyPgColumn => queueEntries.id,
-      { onDelete: "set null" },
-    ),
+    // Integer position for queue ordering — lower = front of queue
+    position: integer("position").notNull().default(0),
     gamesPlayed: integer("games_played").notNull().default(0),
     // True = player chose to sit out the current game being assembled.
     // Auto-cleared by DB trigger when the relevant game transitions to active/completed.
@@ -105,7 +104,7 @@ export const queueEntries = pgTable(
   (t) => [
     index("idx_queue_entries_run_id").on(t.runId),
     index("idx_queue_entries_user_id").on(t.userId),
-    index("idx_queue_entries_after_entry_id").on(t.afterEntryId),
+    index("idx_queue_entries_run_id_position").on(t.runId, t.position),
   ],
 );
 
@@ -165,6 +164,7 @@ export const scoreEvents = pgTable(
     // RESTRICT — scoring history is permanent
     queueEntryId: uuid("queue_entry_id").notNull().references(() => queueEntries.id, { onDelete: "restrict" }),
     team: gameTeam("team").notNull(),
+    points: integer("points").notNull().default(1),
     // NULL = active point, non-null = undone
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -194,13 +194,6 @@ export const runsRelations = relations(runs, ({ one, many }) => ({
 export const queueEntriesRelations = relations(queueEntries, ({ one, many }) => ({
   run: one(runs, { fields: [queueEntries.runId], references: [runs.id] }),
   user: one(users, { fields: [queueEntries.userId], references: [users.id] }),
-  // Self-referential linked-list pointer
-  afterEntry: one(queueEntries, {
-    fields: [queueEntries.afterEntryId],
-    references: [queueEntries.id],
-    relationName: "linkedList",
-  }),
-  prevEntries: many(queueEntries, { relationName: "linkedList" }),
   gamePlayers: many(gamePlayers),
   scoreEvents: many(scoreEvents),
 }));
