@@ -1,5 +1,3 @@
-/* eslint-disable camelcase */
-
 /**
  * @param {import('node-pg-migrate').MigrationBuilder} pgm
  */

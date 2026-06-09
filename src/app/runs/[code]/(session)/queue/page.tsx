@@ -72,7 +72,6 @@ export default function QueuePage() {
 
   const onCourtCount = queue.onCourt.length;
   const waitingCount = queue.waiting.filter((e) => e.status === "waiting").length;
-  const outCount = queue.waiting.filter((e) => e.status === "marked_out").length;
   const totalCount = onCourtCount + queue.waiting.length;
 
   async function handleStatusUpdate(entryId: string, status: "waiting" | "marked_out" | "removed") {
