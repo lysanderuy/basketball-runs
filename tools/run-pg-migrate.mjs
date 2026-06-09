@@ -48,7 +48,7 @@ const cliArgs = [
 
 const result = spawnSync(process.execPath, cliArgs, {
   stdio: 'inherit',
-  shell: isWin,
+  shell: false,
   env: { ...process.env, DATABASE_URL: databaseUrl },
 });
 
