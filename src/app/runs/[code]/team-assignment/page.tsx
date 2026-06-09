@@ -69,6 +69,15 @@ export default function TeamAssignmentPage() {
   const zoneARef = useRef<HTMLDivElement>(null);
   const zoneBRef = useRef<HTMLDivElement>(null);
 
+  // ─── Touch drag polyfill ───────────────────────────────────────────────────────
+  // HTML5 drag-and-drop fires no events on touchscreens, so the card drag was
+  // desktop-only. This polyfill translates touch events into the same drag events
+  // the handlers below already listen for. Loaded lazily in the browser — its
+  // singleton attaches to `document` at import time, which would throw during SSR.
+  useEffect(() => {
+    import("drag-drop-touch");
+  }, []);
+
   // ─── Load ────────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
