@@ -34,6 +34,8 @@ This is a **mobile-first web app**. Players use it on their phones at the court.
 
 ## Project Structure
 
+All paths below live under `src/` (e.g. `src/app`, `src/services`, `src/lib`).
+
 ```
 app/
 ├── page.tsx                        Landing
@@ -61,7 +63,7 @@ app/
     │   └── [code]/
     │       ├── status/
     │       ├── games/
-    │       │   └── [gameId]/
+    │       │   └── [gameId]/            GET detail · PATCH end game
     │       │       ├── clock/
     │       │       └── score/
     │       └── queue/
@@ -155,7 +157,8 @@ UI (pages/components)
 These are non-negotiable — violations break the app silently.
 
 - **`games.score_a` and `games.score_b` are trigger-maintained.** Never write them from application code. Only `score_events` inserts/voids affect them.
-- **Queue ordering is a linked list.** Order is encoded via `queue_entries.after_entry_id` (NULL = head). Never use integer positions or ORDER BY `joined_at` to determine queue order.
+- **Queue ordering is the integer `position` column.** Lower `position` = front of queue; read order with `ORDER BY position ASC`. Never use `ORDER BY joined_at` to determine queue order. (The old `after_entry_id` linked list was dropped in migration `1781020049924`.)
+- **Queue rotation is trigger-maintained.** `trg_rotate_queue_on_game_complete` rewrites `queue_entries.position` on every game → `completed` transition (rotates the losing team or all players per `run_format`). Never rotate the queue from application code — game completion is the only path that may reorder it.
 - **Never hard-delete `queue_entries` with game history.** `game_players` and `score_events` have `ON DELETE RESTRICT` on `queue_entry_id`. Always set `status = 'removed'` instead.
 - **`users.id` mirrors `auth.users.id`.** The row is created by trigger, not by the app. Never insert into `users` manually.
 - **`session_code` is the public identifier for a run.** URLs use `[code]` not `[id]`.
@@ -243,6 +246,7 @@ Auth is enforced by middleware, not layouts. Do not add auth checks to layouts �
 - Do not put business logic in API route handlers — put it in `services/`
 - Do not use `z.parse()` in API routes — always `z.safeParse()`
 - Do not add Zod validation inside services — services trust their inputs
-- Do not use integer rank columns for queue ordering — the linked list is the order
+- Do not use `ORDER BY joined_at` for queue ordering — the integer `position` column is the order
+- Do not rotate the queue from app code — the game-completion trigger owns `queue_entries.position`
 - Do not create new files unless the task requires it
 - Do not add comments explaining what code does — only add comments explaining why when the reason is non-obvious

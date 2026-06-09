@@ -1,397 +1,203 @@
-# BallRuns — Database Schema
+# BallRuns — Database Behavior
 
-> Supabase / PostgreSQL · Event-sourced scoring · Linked-list queue
+> **Tables, columns, types, defaults, FKs, indexes, and enum values: see [`src/lib/db/schema.ts`](../src/lib/db/schema.ts) — that is the source of truth.**
+>
+> This document covers only what schema.ts *can't* encode: triggers, the cron
+> job, RLS policy shape, how scores are derived, the clock model, and the design
+> decisions behind them. If you're looking for "what columns does table X have,"
+> read schema.ts, not this file.
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Tables](#tables)
-3. [Enums](#enums)
-4. [Trigger: Score Sync](#trigger-score-sync)
-5. [Queue: Linked List](#queue-linked-list)
-6. [Clock Architecture](#clock-architecture)
-7. [Row Level Security](#row-level-security)
-8. [Indexes](#indexes)
+2. [Enum Semantics](#enum-semantics)
+3. [Scoring — Event Sourced](#scoring--event-sourced)
+4. [Triggers](#triggers)
+5. [Cron — Timed Game Expiry](#cron--timed-game-expiry)
+6. [Queue Ordering](#queue-ordering)
+7. [Clock Architecture](#clock-architecture)
+8. [Row Level Security](#row-level-security)
 9. [Key Design Decisions](#key-design-decisions)
 
 ---
 
 ## Architecture Overview
 
-BallRuns uses three user roles — **Host**, **Player**, and **Spectator** — each with different levels of access. The host is the only authenticated user. Players and spectators are guests who join via session code.
+BallRuns has three roles — **Host**, **Player**, **Spectator**. The host is the
+only authenticated user; players and spectators are guests who join via session
+code. URLs use the public `session_code` (`runs/[code]`), never the run UUID.
 
-All live score updates flow through Supabase Realtime. When the host taps a player to score, a row is inserted into `score_events`. A database trigger fires in the same transaction, recomputing and writing the updated score to `games.score_a` or `games.score_b`. Realtime then broadcasts the updated `games` row to every connected client. No client holds local score state — all clients derive their view from the database.
+All live updates flow through Supabase Realtime. No client holds local score
+state — every client derives its view from the database. When the host scores, a
+row is inserted into `score_events`; a trigger recomputes `games.score_a` /
+`score_b` in the same transaction; Realtime broadcasts the updated `games` row.
 
-### Table Relationships
+### Relationships
 
-| Table | Belongs To | Has Many |
-|---|---|---|
-| `users` | — | `runs` |
-| `runs` | `users` (host) | `queue_entries`, `games` |
-| `queue_entries` | `runs` | `game_players`, `score_events` |
-| `games` | `runs` | `game_players`, `score_events` |
-| `game_players` | `games`, `queue_entries` | — |
-| `score_events` | `games`, `queue_entries` | — |
+```
+users ──< runs ──< queue_entries ──< game_players >── games
+                         │                              │
+                         └──────< score_events >────────┘
+```
 
-`queue_entries` also has a self-referential relationship via `after_entry_id` for linked-list ordering.
-
----
-
-## Tables
-
----
-
-### `users`
-
-Extends Supabase `auth.users` with app-level profile data. Only account holders have a row here. Guests never appear in this table.
-
-| Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|
-| `id` | UUID | No | — | PK · mirrors `auth.users(id)` · CASCADE on delete |
-| `display_name` | TEXT | No | — | |
-| `created_at` | TIMESTAMPTZ | No | `NOW()` | |
-| `updated_at` | TIMESTAMPTZ | No | `NOW()` | |
-
-**Constraints**
-- `id` references `auth.users(id) ON DELETE CASCADE` — profile is removed when the auth record is deleted
-- No email or PII stored here — Supabase Auth owns that
+- `runs.host_id → users.id` (RESTRICT)
+- `queue_entries.run_id → runs.id` (CASCADE), `queue_entries.user_id → users.id` (SET NULL, null for guests)
+- `game_players` / `score_events` → `queue_entries.id` is **RESTRICT** — an entry with game history can never be hard-deleted. Removal is always `status = 'removed'`, never a DELETE.
 
 ---
 
-### `runs`
+## Enum Semantics
 
-One row per session. The top-level unit of organisation for a full open run.
+Values live in schema.ts. What each value *means* / *drives*:
 
-| Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | PK |
-| `host_id` | UUID | No | — | FK → `users(id)` · RESTRICT on delete |
-| `name` | TEXT | No | — | |
-| `location` | TEXT | Yes | — | Optional |
-| `format` | `run_format` | No | — | Enum — drives queue auto-update logic |
-| `status` | `run_status` | No | `'lobby'` | Enum — lifecycle state |
-| `session_code` | TEXT | No | — | Unique · short code for QR join (e.g. `RKR-74`) |
-| `created_at` | TIMESTAMPTZ | No | `NOW()` | |
-| `updated_at` | TIMESTAMPTZ | No | `NOW()` | |
+### `run_format` — drives queue rotation on game completion
 
-**Constraints**
-- `session_code` is unique across all runs
-- `host_id` uses `ON DELETE RESTRICT` — a run cannot be silently orphaned if a user is deleted
+| Value | Behavior |
+|---|---|
+| `winner_stays` | Winning team stays on court; losing team rotates to the back |
+| `new_ten` | Every player in the game rotates to the back (fresh ten next game) |
+| `host_decides` | No auto-rotation — host manages the queue manually |
 
-**Status lifecycle:** `lobby → active → completed`
+A `tie` result rotates **all** players regardless of `winner_stays` (no team earned the right to stay). See [Triggers](#triggers).
 
----
+### `run_point_system` — which point values are legal
 
-### `queue_entries`
+| Value | Allowed `score_events.points` |
+|---|---|
+| `one_two` | 1, 2 |
+| `two_three` | 2, 3 |
 
-Every participant in a run — guests and account holders alike. This table is also the queue itself.
+Enforced in the score API route against `runs.point_system` before the service runs.
 
-| Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | PK |
-| `run_id` | UUID | No | — | FK → `runs(id)` · CASCADE on delete |
-| `user_id` | UUID | Yes | — | FK → `users(id)` · SET NULL on delete · null for guests |
-| `display_name` | TEXT | No | — | Stored as entered · displayed uppercase via CSS |
-| `status` | `queue_entry_status` | No | `'waiting'` | Enum |
-| `after_entry_id` | UUID | Yes | — | FK → `queue_entries(id)` · SET NULL on delete · `NULL` = head of queue |
-| `joined_at` | TIMESTAMPTZ | No | `NOW()` | |
-| `updated_at` | TIMESTAMPTZ | No | `NOW()` | |
+### `game_winner`
 
-**Constraints**
-- `user_id` is nullable — guests join with a name only, no account needed
-- `after_entry_id` self-references `queue_entries(id)` — this is the linked-list pointer. See [Queue: Linked List](#queue-linked-list)
-- `ON DELETE SET NULL` on `after_entry_id` — if a referenced node is removed, the pointer becomes null rather than breaking referential integrity
+`team_a` · `team_b` · `tie`. NULL until the game ends. `tie` is set when scores are equal at expiry or at goal.
+
+### Status enums
+
+- `run_status`: `lobby → active → completed`
+- `game_status`: `pending → active → completed`
+- `queue_entry_status`: `waiting` (in queue) · `marked_out` (stepped away, reinstatable) · `removed` (gone for the day, excluded from all queue ops)
 
 ---
 
-### `games`
+## Scoring — Event Sourced
 
-One game within a run. Contains all clock state and the denormalized score cache.
+`score_events` is the source of truth. Each point scored inserts one row carrying
+its weight in `points` (1, 2, or 3). Undo is a **soft void** (`voided_at = NOW()`),
+never a delete. `games.score_a` / `score_b` are a denormalized cache, **never
+written by application code** — only the sync trigger writes them.
 
-| Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | PK |
-| `run_id` | UUID | No | — | FK → `runs(id)` · CASCADE on delete |
-| `game_number` | INTEGER | No | — | Sequential within run (1, 2, 3…) |
-| `status` | `game_status` | No | `'pending'` | Enum |
-| `score_goal` | INTEGER | No | — | Target score to win (e.g. 21) |
-| `time_limit_seconds` | INTEGER | Yes | — | `NULL` = no clock · no clock bar rendered |
-| `clock_started_at` | TIMESTAMPTZ | Yes | — | `NULL` until host starts clock |
-| `clock_paused_at` | TIMESTAMPTZ | Yes | — | Non-null = clock is currently paused |
-| `total_paused_seconds` | INTEGER | No | `0` | Accumulated pause time · used in clock formula |
-| `score_a` | INTEGER | No | `0` | **Trigger-maintained** · never written by app directly |
-| `score_b` | INTEGER | No | `0` | **Trigger-maintained** · never written by app directly |
-| `winner` | `game_winner` | Yes | — | `NULL` until game ends |
-| `started_at` | TIMESTAMPTZ | Yes | — | |
-| `ended_at` | TIMESTAMPTZ | Yes | — | |
-| `created_at` | TIMESTAMPTZ | No | `NOW()` | |
-| `updated_at` | TIMESTAMPTZ | No | `NOW()` | |
-
-**Constraints**
-- `(run_id, game_number)` is unique — no duplicate game numbers within a run
-- `score_a` and `score_b` are never written by the application layer — only the database trigger writes them
-
-**Status lifecycle:** `pending → active → completed`
-
----
-
-### `game_players`
-
-Join table recording which queue entry played in which game, on which team. Immutable once created.
-
-| Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | PK |
-| `game_id` | UUID | No | — | FK → `games(id)` · CASCADE on delete |
-| `queue_entry_id` | UUID | No | — | FK → `queue_entries(id)` · RESTRICT on delete |
-| `team` | `game_team` | No | — | Enum |
-| `created_at` | TIMESTAMPTZ | No | `NOW()` | |
-
-**Constraints**
-- `(game_id, queue_entry_id)` is unique — a player cannot be on both teams
-- `ON DELETE RESTRICT` on `queue_entry_id` — a queue entry that has game history cannot be removed. The app handles this by setting `status = 'removed'` instead of deleting the row
-- No `updated_at` — this record is immutable after creation
-
----
-
-### `score_events`
-
-The source of truth for all scoring. Rows are inserted on every point scored and soft-voided on undo. Scores are never stored directly — they are always derived from this table by the trigger.
-
-| Column | Type | Nullable | Default | Notes |
-|---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | PK |
-| `game_id` | UUID | No | — | FK → `games(id)` · CASCADE on delete |
-| `queue_entry_id` | UUID | No | — | FK → `queue_entries(id)` · RESTRICT on delete |
-| `team` | `game_team` | No | — | Enum |
-| `voided_at` | TIMESTAMPTZ | Yes | — | `NULL` = active point · set = undone |
-| `created_at` | TIMESTAMPTZ | No | `NOW()` | Ordering key for the score log |
-
-**Constraints**
-- `ON DELETE RESTRICT` on `queue_entry_id` — scoring history is permanent
-- No rows in this table are ever hard-deleted
-
-**Derived values**
+Derived values (note: **`SUM(points)`**, not `COUNT(*)` — points are weighted):
 
 | Value | Query |
 |---|---|
-| Team A live score | `COUNT(*) WHERE game_id = ? AND team = 'team_a' AND voided_at IS NULL` |
-| Team B live score | `COUNT(*) WHERE game_id = ? AND team = 'team_b' AND voided_at IS NULL` |
-| Player points | `COUNT(*) WHERE queue_entry_id = ? AND game_id = ? AND voided_at IS NULL` |
-| Score log | `SELECT * WHERE game_id = ? ORDER BY created_at DESC` |
+| Team A live score | `SUM(points) WHERE game_id = ? AND team = 'team_a' AND voided_at IS NULL` |
+| Team B live score | `SUM(points) WHERE game_id = ? AND team = 'team_b' AND voided_at IS NULL` |
+| Player points | `SUM(points) WHERE queue_entry_id = ? AND game_id = ? AND voided_at IS NULL` |
+| Games played | `COUNT(*)` of `game_players` rows joined to `games` where `status = 'completed'` — there is **no stored counter** |
+| Score log | `SELECT * WHERE game_id = ? AND voided_at IS NULL ORDER BY created_at DESC` |
 
 ---
 
-## Enums
+## Triggers
 
-### `run_format`
+All trigger functions are `SECURITY DEFINER SET search_path = public` so they can
+write past RLS, and run inside the caller's transaction (atomic, no gap).
 
-| Value | Behaviour |
-|---|---|
-| `winner_stays` | Winning team stays on court · losing team goes to back of queue |
-| `new_ten` | Entirely new 10 players pulled from queue each game |
-| `host_decides` | Host manually controls queue composition after each game |
+### `trg_score_events_update_game_score` → `sync_game_score()`
 
-### `run_status`
+- Fires: `AFTER INSERT OR UPDATE OF voided_at ON score_events`
+- Action: recomputes `games.score_a` / `score_b` as `COALESCE(SUM(points), 0)` per team over non-voided events. Insert raises the score; voiding lowers it; all clients self-correct via Realtime.
+- Why a trigger, not an edge function: an edge function would leave a window where the cache is stale, and a permanent inconsistency if it failed. The trigger commits with the event or not at all.
 
-| Value | Meaning |
-|---|---|
-| `lobby` | Run created, QR live, no game started yet |
-| `active` | At least one game has started |
-| `completed` | Run is over |
+### `trg_rotate_queue_on_game_complete` → `rotate_queue_on_game_complete()`
 
-### `game_status`
+- Fires: `AFTER UPDATE OF status ON games`, only on the first `OLD.status <> 'completed' → NEW.status = 'completed'` transition.
+- Action: rewrites `queue_entries.position` to append the rotated players after the current max position, preserving their relative order. Who rotates depends on `run_format`: `host_decides` = nobody; `new_ten` or `winner = 'tie'` = everyone in the game; `winner_stays` = the losing team only.
+- **This is the single source of truth for rotation.** It fires on *every* completion path — host "End game", score-to-goal auto-complete, and the cron expiry job. Never rotate the queue from application code.
 
-| Value | Meaning |
-|---|---|
-| `pending` | Teams assigned, game not yet started |
-| `active` | Game in progress |
-| `completed` | Winner declared, game over |
+### `trg_clear_sitting_out_on_game_advance` → `clear_sitting_out_on_game_advance()`
 
-### `game_winner` / `game_team`
-
-| Value | Meaning |
-|---|---|
-| `team_a` | The "Runs" team — displayed with accent colour |
-| `team_b` | The "Next" team — displayed in secondary colour |
-
-### `queue_entry_status`
-
-| Value | Meaning |
-|---|---|
-| `waiting` | In queue, available to play |
-| `marked_out` | Stepped away — greyed out, stays in list, can be reinstated |
-| `removed` | Gone for good — excluded from all queue operations |
+- Fires: `AFTER UPDATE ON games`.
+- Action: when a game in the run first leaves `pending` (goes `active` or `completed`), clears `sitting_out = false` for every entry in that run. So a player benched for one game ("Bench for next game") resurfaces automatically the following round. Distinct from `status = 'marked_out'`, which is a hard day-long removal.
 
 ---
 
-## Trigger: Score Sync
+## Cron — Timed Game Expiry
 
-The trigger `trg_score_events_update_game_score` keeps `games.score_a` and `games.score_b` in sync with the contents of `score_events`. It runs inside the same database transaction as the event that caused it — the score cache is always consistent at commit time.
+A **pg_cron** job `expire-timed-games` runs every minute:
 
-### When it fires
+```
+UPDATE games SET status = 'completed', ended_at = NOW(), clock_paused_at = NOW(),
+  winner = CASE WHEN score_a = score_b THEN 'tie'
+                WHEN score_a > score_b THEN 'team_a' ELSE 'team_b' END
+WHERE status = 'active' AND time_limit_seconds IS NOT NULL
+  AND clock_started_at IS NOT NULL AND clock_paused_at IS NULL
+  AND EXTRACT(EPOCH FROM (NOW() - clock_started_at))::int - total_paused_seconds >= time_limit_seconds;
+```
 
-| Event | Trigger action |
-|---|---|
-| `INSERT` on `score_events` | Recount and update `score_a` / `score_b` |
-| `UPDATE OF voided_at` on `score_events` | Recount and update `score_a` / `score_b` |
-| Any other `UPDATE` on `score_events` | Does not fire |
-
-### Why a trigger, not an edge function
-
-An edge function would introduce a window between the event INSERT and the score update — during which `score_a` and `score_b` are stale. If the edge function failed, the cache would be permanently wrong. A trigger runs atomically: either both the event and the score update commit, or neither does. There is no gap and no failure mode that leaves the cache inconsistent.
-
-### Security notes
-
-- `SECURITY DEFINER` — the function runs with its owner's privileges, not the calling user's. This allows it to write to `games` even when RLS would otherwise block the caller
-- `SET search_path = public` — prevents a malicious schema from shadowing public functions inside the trigger body
-
-### Score update flow
-
-**Scoring a point**
-
-1. Host taps a player name
-2. App inserts one row into `score_events` with `game_id`, `queue_entry_id`, `team`
-3. Trigger fires — recounts active events for both teams and writes to `games.score_a` / `score_b`
-4. Supabase Realtime broadcasts the updated `games` row
-5. All connected clients receive the new score — no client-side arithmetic required
-
-**Undoing a point**
-
-1. Host taps Undo
-2. App sets `voided_at = NOW()` on the most recent non-voided event
-3. Trigger fires — recount produces a value one lower than before
-4. Realtime broadcasts the updated `games` row
-5. All clients self-correct
+This guarantees a timed game ends even if no host client is open. Because it sets
+`status = 'completed'`, the rotation trigger fires and the queue rotates — the
+app, the score auto-complete, and cron all share one rotation path. Defined in
+the `add-pg-cron-expire-games` / `add-game-winner-tie` migrations.
 
 ---
 
-## Queue: Linked List
+## Queue Ordering
 
-The queue is ordered via a singly linked list. Each `queue_entries` row holds a pointer — `after_entry_id` — to the entry it follows. A `NULL` pointer means the entry is at the head of the queue.
+The queue is ordered by the integer column `queue_entries.position` — **lower =
+front**. Read order with `ORDER BY position ASC`. (The original `after_entry_id`
+linked list was dropped in migration `1781020049924`; positions were backfilled
+from the list.)
 
-### Why a linked list over integer ranks
-
-With integer ranks, reordering a player requires updating every row below them in the queue. With a linked list, any reorder only touches two or three rows regardless of queue length. For a host dragging players around mid-game, this is meaningfully safer and more efficient.
-
-### Example queue state
-
-| `display_name` | `after_entry_id` | Position |
-|---|---|---|
-| Marcus | `NULL` | 1st — head of queue |
-| Kel | → Marcus | 2nd |
-| Tone | → Kel | 3rd |
-| D. Webb | → Tone | 4th |
-| Junie | → D. Webb | 5th |
-
-### Reorder: move Tone to 2nd position
-
-Before: Marcus → Kel → Tone → D. Webb → Junie
-
-After: Marcus → Tone → Kel → D. Webb → Junie
-
-| Row updated | Change |
-|---|---|
-| Tone | `after_entry_id` → Marcus |
-| Kel | `after_entry_id` → Tone |
-
-Two rows touched. No other rows affected.
-
-### Remove: remove Kel
-
-Before: Marcus → Kel → Tone → D. Webb → Junie
-
-After: Marcus → Tone → D. Webb → Junie
-
-| Row updated | Change |
-|---|---|
-| Kel | `status` → `removed` |
-| Tone | `after_entry_id` → Marcus (skip over Kel) |
-
-Kel's row is kept. `ON DELETE RESTRICT` on `queue_entry_id` in `game_players` and `score_events` means a row with game history can never be hard-deleted. The app always sets `status = 'removed'` rather than issuing a DELETE.
-
-### Reading the queue in order
-
-The ordered list is reconstructed by traversing from the entry with `after_entry_id = NULL` (head), following each pointer until the tail. This traversal happens in the app layer. A Postgres recursive CTE can also compute it server-side when the full ordered list is needed in a single query.
+- **Join**: new entry takes `MAX(position) + 1` under a per-run advisory lock so concurrent joins can't collide.
+- **Rotation**: handled exclusively by `trg_rotate_queue_on_game_complete` (above).
+- **Removal**: set `status = 'removed'` — never DELETE (RESTRICT FKs on game history).
 
 ---
 
 ## Clock Architecture
 
-The game clock never ticks on any device. When the host starts the clock, the server stores a timestamp. Every client independently computes the remaining time by subtracting elapsed time from the limit.
-
-### Clock formula
+The clock never ticks on any device. The server stores timestamps; every client
+computes remaining time independently — zero drift, survives reconnects, no
+client-held state.
 
 ```
-remaining = time_limit_seconds − (NOW() − clock_started_at − total_paused_seconds)
+remaining = time_limit_seconds − ((NOW() − clock_started_at) − total_paused_seconds − [paused now ? NOW() − clock_paused_at : 0])
 ```
 
-Any client connecting mid-game computes the correct remaining time immediately from four values already on the `games` row: `time_limit_seconds`, `clock_started_at`, `clock_paused_at`, and `total_paused_seconds`. No sync is required. No drift is possible.
+Four columns carry the whole model: `time_limit_seconds`, `clock_started_at`,
+`clock_paused_at` (non-null ⇒ paused), `total_paused_seconds`.
 
-### Clock state on the `games` row
+- **Pause**: set `clock_paused_at = NOW()`. Idempotent — pausing an already-paused clock is a no-op, so paused time already accrued is never erased.
+- **Resume**: `total_paused_seconds += NOW() − clock_paused_at`, then `clock_paused_at = NULL`. Idempotent — resuming a running clock is a no-op.
 
-| Column | Running | Paused |
-|---|---|---|
-| `clock_started_at` | Set (timestamp) | Set (unchanged) |
-| `clock_paused_at` | `NULL` | Set (timestamp of pause) |
-| `total_paused_seconds` | Accumulated total | Accumulated total (not yet including current pause) |
-
-### Pause flow
-
-1. Host taps Pause
-2. App sets `clock_paused_at = NOW()` on the `games` row
-3. Realtime broadcasts — all clients see `clock_paused_at` is non-null and freeze display
-
-### Resume flow
-
-1. Host taps Resume
-2. App computes `paused_duration = NOW() − clock_paused_at`
-3. App sets `total_paused_seconds = total_paused_seconds + paused_duration` and `clock_paused_at = NULL`
-4. Realtime broadcasts — all clients resume ticking from the correct position
+The cron expiry job reads `games.time_limit_seconds` (copied from the run at game
+creation), so a game's deadline is fixed at creation and unaffected by later run
+edits.
 
 ---
 
 ## Row Level Security
 
-Full policy SQL lives in migration files. This table describes the intended access shape per role.
+Full policy SQL: `supabase/migrations/0003_rls.sql` (legacy, already applied — do
+not edit). Intended access shape:
 
 | Table | Read | Insert | Update |
 |---|---|---|---|
-| `users` | Own row only | — | Own row only |
-| `runs` | `session_code` match · or own run | Host only | Host only |
-| `queue_entries` | Run accessible to caller | Anyone (guest join) | Host of run only |
-| `games` | Run accessible to caller | Host only | Host only |
-| `game_players` | Run accessible to caller | Host only | — |
-| `score_events` | Run accessible to caller | Host only | Host only (`voided_at` only) |
+| `users` | Own row (authenticated) | — (trigger-created) | Own row |
+| `runs` | Authenticated: own run or a run they have an entry in · Anon: **all** (QR lookup by code) | Host (`host_id = auth.uid()`) | Host |
+| `queue_entries` | **Anyone** (guests/spectators need the list) | **Anyone** (guest join, `WITH CHECK true`) | Host of the run only |
+| `games` | Anyone | Host of the run | Host of the run |
+| `game_players` | Anyone | Host of the run | — (immutable) |
+| `score_events` | Anyone | Host of the run | Host of the run (undo / `voided_at`) |
 
-**Note:** The score trigger runs as `SECURITY DEFINER` and intentionally bypasses RLS. It is the only writer to `games.score_a` and `games.score_b`.
-
----
-
-## Indexes
-
-| Table | Index | Type | Purpose |
-|---|---|---|---|
-| `users` | `idx_users_created_at` | Standard | Run history pagination |
-| `runs` | `uq_runs_session_code` | Unique | QR join lookup |
-| `runs` | `idx_runs_host_id` | Standard | Host's run history |
-| `runs` | `idx_runs_status` | Standard | Active run queries |
-| `queue_entries` | `idx_queue_entries_run_id` | Standard | Queue page load |
-| `queue_entries` | `idx_queue_entries_user_id` | Standard | Player's run history |
-| `queue_entries` | `idx_queue_entries_after_entry_id` | Standard | Linked list traversal |
-| `games` | `uq_games_run_id_game_number` | Unique | Game numbering integrity |
-| `games` | `idx_games_run_id` | Standard | Run feed load |
-| `games` | `idx_games_status` | Standard | Active game queries |
-| `game_players` | `uq_game_players_game_entry` | Unique | Duplicate prevention |
-| `game_players` | `idx_game_players_game_id` | Standard | Team load per game |
-| `game_players` | `idx_game_players_queue_entry_id` | Standard | Player game history |
-| `score_events` | `idx_score_events_game_id` | Standard | Full game event log |
-| `score_events` | `idx_score_events_game_voided` | **Partial** `WHERE voided_at IS NULL` | Live score queries — active events only |
-| `score_events` | `idx_score_events_queue_entry_id` | Standard | Per-player points |
-
-The partial index on `score_events (game_id, voided_at) WHERE voided_at IS NULL` is the most performance-critical index in the schema. Every live score query filters on exactly these conditions. The partial index covers them entirely without scanning voided rows.
+The score-sync, rotation, and sitting-out triggers run `SECURITY DEFINER` and
+intentionally bypass RLS — they are the only writers to `games.score_a/score_b`
+and to trigger-driven `queue_entries.position` / `sitting_out`.
 
 ---
 
@@ -399,12 +205,13 @@ The partial index on `score_events (game_id, voided_at) WHERE voided_at IS NULL`
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Score storage | Event sourcing via `score_events` | Score is always derivable from source — survives refresh, reconnects, and undo with no client state |
-| Score cache | Denormalized `score_a` / `score_b` on `games` | Cheap reads for the feed and results screens without aggregating all events on every request |
-| Cache sync | Database trigger | Atomically consistent — the cache updates in the same transaction as the event. An edge function would introduce a consistency gap |
-| Queue ordering | Linked list via `after_entry_id` | Reorders touch 2–3 rows regardless of queue size. Integer ranks require updating every row below the moved entry |
-| Guest players | Nullable `user_id` on `queue_entries` | Guests join with name only — no friction. Account linking is optional and additive |
-| Clock | Server timestamps, client formula | Zero drift. Survives reconnects. No server-side interval or cron required |
-| Undo | Soft void via `voided_at` | Non-destructive. Full history is preserved. The trigger recounts on void and the score self-corrects |
-| Hard delete prevention | `ON DELETE RESTRICT` on game history FKs | Prevents orphaning game records. Removals are always logical status changes, never physical deletes |
-
+| Score storage | Event sourcing via `score_events` (weighted `points`) | Always derivable — survives refresh, reconnect, undo with no client state |
+| Score cache | Denormalized `score_a` / `score_b` on `games` | Cheap reads for feed/results without aggregating every event per request |
+| Cache sync | DB trigger (`SUM(points)`) | Atomically consistent; an edge function would leave a stale window |
+| Queue ordering | Integer `position` | Simple `ORDER BY`; rotation is a bounded `UPDATE` driven by one trigger |
+| Queue rotation | Trigger on game completion | One source of truth shared by host, score auto-complete, and cron — no path can skip it |
+| Timed expiry | pg_cron every minute | Games end even with no host client open; reuses the rotation trigger |
+| Guest players | Nullable `user_id` | Join with a name only — no friction; account linking is optional |
+| Clock | Server timestamps + client formula, idempotent pause/resume | Zero drift; survives reconnect; re-pause/-resume can't corrupt paused time |
+| Undo | Soft void via `voided_at` | Non-destructive; trigger recounts and the score self-corrects |
+| Hard-delete prevention | `ON DELETE RESTRICT` on game-history FKs | No orphaned game records; removals are logical (`status`), never physical |
