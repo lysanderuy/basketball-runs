@@ -422,6 +422,10 @@ export async function clockAction(
   }
 
   if (action === "pause") {
+    // Idempotent — re-pausing an already-paused clock must not move
+    // clockPausedAt forward, which would erase paused time already accrued and
+    // let the clock run ahead of reality on the next resume.
+    if (game.clockPausedAt) return game;
     const [updated] = await db
       .update(games)
       .set({ clockPausedAt: now })
@@ -430,8 +434,9 @@ export async function clockAction(
     return updated;
   }
 
-  // resume
-  const pausedMs = game.clockPausedAt ? now.getTime() - game.clockPausedAt.getTime() : 0;
+  // resume — idempotent: a resume on a clock that is not paused is a no-op.
+  if (!game.clockPausedAt) return game;
+  const pausedMs = now.getTime() - game.clockPausedAt.getTime();
   const [updated] = await db
     .update(games)
     .set({
