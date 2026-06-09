@@ -46,6 +46,7 @@ export async function getRunsForUser(userId: string) {
   return db
     .select({
       id: runs.id,
+      hostId: runs.hostId,
       name: runs.name,
       location: runs.location,
       status: runs.status,

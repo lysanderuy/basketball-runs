@@ -10,8 +10,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userRuns = await getRunsForUser(claimsData.claims.sub);
-  return NextResponse.json(userRuns);
+  const userId = claimsData.claims.sub;
+  const userRuns = await getRunsForUser(userId);
+  const result = userRuns.map(({ hostId, ...run }) => ({
+    ...run,
+    isHost: hostId === userId,
+  }));
+  return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {

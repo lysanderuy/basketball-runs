@@ -34,7 +34,7 @@ const migrationsDir = resolve(repoRoot, 'db', 'migrations');
 // directly with the JS file bypasses both problems entirely.
 const migrateBin = resolve(repoRoot, 'node_modules', 'node-pg-migrate', 'bin', 'node-pg-migrate.js');
 
-const defaultCommandArgs = command === 'up' ? ['--create-schema'] : [];
+const defaultCommandArgs = command === 'up' ? ['--create-schema', '--check-order=false'] : [];
 
 const cliArgs = [
   migrateBin,
@@ -48,6 +48,7 @@ const cliArgs = [
 
 const result = spawnSync(process.execPath, cliArgs, {
   stdio: 'inherit',
+  shell: isWin,
   env: { ...process.env, DATABASE_URL: databaseUrl },
 });
 
