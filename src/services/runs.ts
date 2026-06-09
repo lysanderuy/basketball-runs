@@ -97,6 +97,23 @@ export class PlayerNotInGameError extends Error {
   }
 }
 
+// Thrown when an identical score event (same game, player, team, points) was
+// already recorded within SCORE_DEDUP_MS. Replaces the old in-memory rate
+// limiter, which did not hold on serverless (per-instance Map). This check runs
+// inside the FOR UPDATE transaction, so the second submit blocks on the first's
+// row lock and reliably sees it — a true cross-instance guard against double-taps.
+export class DuplicateScoreError extends Error {
+  constructor() {
+    super("Duplicate score — ignored");
+    this.name = "DuplicateScoreError";
+  }
+}
+
+// Window for treating an identical score event as an accidental duplicate. Short
+// enough that no human can legitimately register two identical baskets for the
+// same player this fast.
+const SCORE_DEDUP_MS = 600;
+
 export async function createGame(
   runId: string,
   teamAEntryIds: string[],
@@ -301,6 +318,25 @@ export async function recordScore(
       )
       .limit(1);
     if (!member) throw new PlayerNotInGameError();
+
+    // Dedup guard — reject an identical score event landing within the window.
+    // Safe because the FOR UPDATE lock above serializes scores for this game, so
+    // a rapid second submit waits for the first to commit and then sees it here.
+    const [recent] = await tx
+      .select({ id: scoreEvents.id })
+      .from(scoreEvents)
+      .where(
+        and(
+          eq(scoreEvents.gameId, gameId),
+          eq(scoreEvents.queueEntryId, queueEntryId),
+          eq(scoreEvents.team, team),
+          eq(scoreEvents.points, points),
+          isNull(scoreEvents.voidedAt),
+          sql`${scoreEvents.createdAt} >= NOW() - (${SCORE_DEDUP_MS} || ' milliseconds')::interval`,
+        ),
+      )
+      .limit(1);
+    if (recent) throw new DuplicateScoreError();
 
     if (game.status === "pending") {
       await tx

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, recordScore, undoLastScore, GameNotFoundError } from "@/services/runs";
+import { getRunByCode, recordScore, undoLastScore, GameNotFoundError, DuplicateScoreError } from "@/services/runs";
 import { scorePointSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/server";
-
-// Simple per-game rate limiter — 500ms cooldown between score events.
-const scoreTimestamps = new Map<string, number>();
-const COOLDOWN_MS = 500;
 
 export async function POST(
   req: NextRequest,
@@ -33,26 +29,15 @@ export async function POST(
     );
   }
 
-  const now = Date.now();
-  const last = scoreTimestamps.get(gameId);
-  if (last && now - last < COOLDOWN_MS) {
-    return NextResponse.json({ error: "Too fast" }, { status: 429 });
-  }
-
   try {
     const event = await recordScore(gameId, run.id, result.data.queueEntryId, result.data.team, result.data.points);
-    // Record timestamp only on success so a failed score does not block the
-    // next legitimate attempt. Schedule eviction after the cooldown so the
-    // map does not grow unbounded across many games.
-    scoreTimestamps.set(gameId, Date.now());
-    setTimeout(() => {
-      const ts = scoreTimestamps.get(gameId);
-      if (ts && Date.now() - ts >= COOLDOWN_MS) scoreTimestamps.delete(gameId);
-    }, COOLDOWN_MS);
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
     if (err instanceof GameNotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 });
+    }
+    if (err instanceof DuplicateScoreError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
     }
     if (err instanceof Error) {
       return NextResponse.json({ error: err.message }, { status: 422 });
