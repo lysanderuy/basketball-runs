@@ -23,12 +23,25 @@ function GoogleIcon() {
 function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
-  const [state, formAction, isPending] = useActionState(signIn, null);
+  const [state, formAction, isPending] = useActionState(
+    async (_prev: { error: string } | null, formData: FormData) => signIn(_prev, formData),
+    null,
+  );
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="app-shell px-5 overflow-y-auto">
-      <div className="pt-12 flex flex-col items-center gap-[2px] animate-fade-up">
+      <div className="pt-4 flex items-center">
+        <Link
+          href="/"
+          className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-all hover:border-accent-dim hover:text-accent hover:bg-accent-glow"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </Link>
+      </div>
+      <div className="pt-6 flex flex-col items-center gap-[2px] animate-fade-up">
         <Link
           href="/"
           className="font-display text-[28px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none transition-opacity hover:opacity-70"
