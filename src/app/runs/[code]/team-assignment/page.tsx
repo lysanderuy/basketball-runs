@@ -25,6 +25,18 @@ type UndoToast   = { key: number; message: string; undo: () => Promise<void> };
 type ActionModal = { player: Player; team: "a" | "b" };
 type SwapMode    = { benchPlayer: Player };
 
+// ─── Confirm-teams error copy ───────────────────────────────────────────────────
+// Maps a failed create-game response status to host-facing copy. Any status not
+// listed (and network failures) falls back to the generic message, so the host
+// always gets feedback.
+const CONFIRM_ERROR_BY_STATUS: Record<number, string> = {
+  409: "A game is already in progress. End it before starting a new one.",
+  422: "Your roster changed — a selected player is no longer available. Refresh and try again.",
+  401: "Your session expired or you're no longer the host. Refresh and sign in again.",
+  403: "Your session expired or you're no longer the host. Refresh and sign in again.",
+};
+const GENERIC_CONFIRM_ERROR = "Couldn't start the game. Please try again.";
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeamAssignmentPage() {
@@ -355,14 +367,13 @@ export default function TeamAssignmentPage() {
         }),
       });
       if (!res.ok) {
-        if (res.status === 409) {
-          setConfirmError("A game is already in progress. End it before starting a new one.");
-        }
+        setConfirmError(CONFIRM_ERROR_BY_STATUS[res.status] ?? GENERIC_CONFIRM_ERROR);
         setConfirming(false);
         return;
       }
       router.push(`/runs/${code}/game`);
     } catch {
+      setConfirmError("Couldn't start the game. Check your connection and try again.");
       setConfirming(false);
     }
   }
