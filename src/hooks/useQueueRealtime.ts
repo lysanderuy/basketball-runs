@@ -19,12 +19,11 @@ export function useQueueRealtime(runId: string | null, refetch: () => void) {
         { event: "*", schema: "public", table: "queue_entries", filter: `run_id=eq.${runId}` },
         () => refetchRef.current(),
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "games", filter: `run_id=eq.${runId}` },
-        () => refetchRef.current(),
-      )
-      .subscribe();
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED" && status !== "CLOSED") {
+          console.error(`Realtime channel queue-${runId} failed:`, status);
+        }
+      });
     return () => {
       supabase.removeChannel(channel);
     };
