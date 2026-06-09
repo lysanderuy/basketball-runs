@@ -99,6 +99,7 @@ export const queueEntries = pgTable(
     // Auto-cleared by DB trigger when the relevant game transitions to active/completed.
     // Intentionally separate from status='marked_out' (which is a hard day-long removal).
     sittingOut: boolean("sitting_out").notNull().default(false),
+    paid: boolean("paid").notNull().default(false),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -114,3 +114,15 @@ export async function updateQueueEntrySittingOut(
     .returning();
   return entry ?? null;
 }
+
+export async function updateQueueEntryPaid(
+  entryId: string,
+  paid: boolean,
+): Promise<QueueEntry | null> {
+  const [entry] = await db
+    .update(queueEntries)
+    .set({ paid, updatedAt: new Date() })
+    .where(eq(queueEntries.id, entryId))
+    .returning();
+  return entry ?? null;
+}

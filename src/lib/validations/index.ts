@@ -34,6 +34,7 @@ export type ReorderQueueInput = z.infer<typeof reorderQueueSchema>;
 export const queueEntryPatchSchema = z.union([
   z.object({ status: z.enum(["waiting", "marked_out", "removed"]) }),
   z.object({ sittingOut: z.boolean() }),
+  z.object({ paid: z.boolean() }),
 ]);
 
 export type QueueEntryPatchInput = z.infer<typeof queueEntryPatchSchema>;

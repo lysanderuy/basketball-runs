@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export function BottomNav() {
+export function BottomNav({ isHost = false }: { isHost?: boolean }) {
   const pathname = usePathname();
   const match = pathname.match(/^\/runs\/([^/]+)/);
   const code = match?.[1] ?? "";
@@ -32,6 +32,17 @@ export function BottomNav() {
         </svg>
       ),
     },
+    ...(isHost ? [{
+      href: `/runs/${code}/payment`,
+      label: "Payment",
+      active: pathname.includes("/payment"),
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      ),
+    }] : []),
   ];
 
   return (
