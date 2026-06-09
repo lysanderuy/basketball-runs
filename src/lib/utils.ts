@@ -20,6 +20,23 @@ export function generateRunCode(): string {
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
 
+export function deriveInitials(
+  metadata: Record<string, unknown> | undefined,
+  email: string | undefined,
+): string {
+  const name =
+    (metadata?.display_name as string | undefined) ||
+    (metadata?.full_name as string | undefined) ||
+    "";
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
+  }
+  return (email ?? "").slice(0, 2).toUpperCase() || "??";
+}
+
 export const hasEnvVars =
   typeof process !== "undefined" &&
   process.env?.NEXT_PUBLIC_SUPABASE_URL &&

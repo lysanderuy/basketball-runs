@@ -26,6 +26,8 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
   const [code, setCode] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const auth = initialAuth;
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [closingRun, setClosingRun] = useState(false);
 
   const stripped = code.replace("-", "");
   const codeReady = stripped.length >= 6;
@@ -52,6 +54,32 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
       return;
     }
     router.push(`/runs/${code}/join`);
+  }
+
+  function handleStartRun() {
+    if (activeRun) {
+      setShowConflictModal(true);
+    } else {
+      router.push("/create-run");
+    }
+  }
+
+  async function handleCloseAndStart() {
+    if (!activeRun) return;
+    setClosingRun(true);
+    try {
+      const res = await fetch(`/api/runs/${activeRun.sessionCode}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (res.ok) {
+        setShowConflictModal(false);
+        router.push("/create-run");
+      }
+    } finally {
+      setClosingRun(false);
+    }
   }
 
   const activeRun =
@@ -171,20 +199,22 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
                 </button>
               )}
 
-              <button
-                onClick={() => router.push("/history")}
-                className="w-full flex items-center justify-between px-[18px] py-3 rounded-md border border-border bg-bg-surface hover:bg-bg-hover transition-colors text-left"
-              >
-                <div className="flex flex-col gap-[5px]">
-                  <span className="font-display text-[18px] font-extrabold tracking-[0.02em] uppercase text-text-secondary leading-none">
-                    Your Runs
-                  </span>
-                  <span className="font-display text-[12px] font-semibold tracking-[0.1em] uppercase text-text-muted">
-                    {completedCount} completed
-                  </span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
-              </button>
+              {auth.runs.length > 0 && (
+                <button
+                  onClick={() => router.push("/history")}
+                  className="w-full flex items-center justify-between px-[18px] py-3 rounded-md border border-border bg-bg-surface hover:bg-bg-hover transition-colors text-left"
+                >
+                  <div className="flex flex-col gap-[5px]">
+                    <span className="font-display text-[18px] font-extrabold tracking-[0.02em] uppercase text-text-secondary leading-none">
+                      Your Runs
+                    </span>
+                    <span className="font-display text-[12px] font-semibold tracking-[0.1em] uppercase text-text-muted">
+                      {completedCount} completed
+                    </span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
+                </button>
+              )}
             </div>
           )}
 
@@ -244,8 +274,8 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
             </div>
           </>
 
-          <Link
-            href="/create-run"
+          <button
+            onClick={handleStartRun}
             className={cn(
               "w-full h-14 rounded-md animate-fade-up",
               "bg-accent text-bg",
@@ -257,7 +287,7 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
           >
             <Plus className="w-4 h-4" />
             Start a Run
-          </Link>
+          </button>
 
           {auth.status === "signed-out" && (
             <div
@@ -278,6 +308,56 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
 
         </div>
       </div>
+
+      {showConflictModal && activeRun && (
+        <>
+          <div
+            className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowConflictModal(false)}
+          />
+          <div className="fixed inset-0 z-[111] flex items-center justify-center px-5">
+            <div className="w-full max-w-[320px] bg-bg-raised border border-border rounded-xl p-6 flex flex-col gap-5 animate-slide-up">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
+                    Run in Progress
+                  </span>
+                  <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                    You already have an active run. Continue it, or close it to start a new one.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowConflictModal(false)}
+                  className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm text-text-muted hover:text-text-primary transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/runs/${activeRun.sessionCode}/feed`)}
+                  className="w-full h-11 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[13px] font-black tracking-[0.08em] uppercase transition-opacity hover:opacity-90"
+                >
+                  Continue Run
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseAndStart}
+                  disabled={closingRun}
+                  className="w-full h-11 flex items-center justify-center rounded-md border border-danger/40 bg-danger/[0.06] text-[#ff6060] font-display text-[13px] font-black tracking-[0.08em] uppercase transition-all hover:bg-danger/[0.12] disabled:opacity-50"
+                >
+                  {closingRun ? "Closing..." : "Close & Start New"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
