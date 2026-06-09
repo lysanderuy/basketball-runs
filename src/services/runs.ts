@@ -76,6 +76,16 @@ export class OngoingGameError extends Error {
   }
 }
 
+// Thrown when a gameId does not exist or does not belong to the target run.
+// The route catches this and returns 404 so a host cannot act on a game in a
+// run they do not own (the URL only carries the run code, not the game's run).
+export class GameNotFoundError extends Error {
+  constructor() {
+    super("Game not found");
+    this.name = "GameNotFoundError";
+  }
+}
+
 export async function createGame(
   runId: string,
   teamAEntryIds: string[],
@@ -249,13 +259,14 @@ export async function getGameWithDetails(gameId: string): Promise<GameWithDetail
 
 export async function recordScore(
   gameId: string,
+  runId: string,
   queueEntryId: string,
   team: "team_a" | "team_b",
   points: number,
 ): Promise<ScoreEvent> {
   return db.transaction(async (tx) => {
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1);
-    if (!game) throw new Error("Game not found");
+    if (!game || game.runId !== runId) throw new GameNotFoundError();
     if (game.status === "completed") throw new Error("Game is already completed");
 
     if (game.status === "pending") {
@@ -294,7 +305,14 @@ export async function recordScore(
   });
 }
 
-export async function undoLastScore(gameId: string): Promise<ScoreEvent | null> {
+export async function undoLastScore(gameId: string, runId: string): Promise<ScoreEvent | null> {
+  const [game] = await db
+    .select({ runId: games.runId })
+    .from(games)
+    .where(eq(games.id, gameId))
+    .limit(1);
+  if (!game || game.runId !== runId) throw new GameNotFoundError();
+
   const [event] = await db
     .select()
     .from(scoreEvents)
@@ -317,10 +335,11 @@ export async function undoLastScore(gameId: string): Promise<ScoreEvent | null> 
 
 export async function clockAction(
   gameId: string,
+  runId: string,
   action: "start" | "pause" | "resume",
 ): Promise<Game> {
   const [game] = await db.select().from(games).where(eq(games.id, gameId)).limit(1);
-  if (!game) throw new Error("Game not found");
+  if (!game || game.runId !== runId) throw new GameNotFoundError();
 
   const now = new Date();
 
@@ -398,7 +417,7 @@ async function rotateQueue(
 
 // ─── End game ─────────────────────────────────────────────────────────────────
 
-export async function endGame(gameId: string): Promise<Game> {
+export async function endGame(gameId: string, runId: string): Promise<Game> {
   return db.transaction(async (tx) => {
     // Row lock on the game so a concurrent recordScore (whose trigger takes
     // the same row lock) blocks until we commit, and its updates are visible
@@ -409,7 +428,7 @@ export async function endGame(gameId: string): Promise<Game> {
       .where(eq(games.id, gameId))
       .limit(1)
       .for("update");
-    if (!game) throw new Error("Game not found");
+    if (!game || game.runId !== runId) throw new GameNotFoundError();
     if (game.status === "completed") return game;
 
     // Per-run advisory lock — same key as createGame — so a concurrent

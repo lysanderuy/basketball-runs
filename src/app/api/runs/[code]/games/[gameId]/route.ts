@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, getGameWithDetails, endGame } from "@/services/runs";
+import { getRunByCode, getGameWithDetails, endGame, GameNotFoundError } from "@/services/runs";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
@@ -34,9 +34,12 @@ export async function PATCH(
   if (run.hostId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
-    const game = await endGame(gameId);
+    const game = await endGame(gameId, run.id);
     return NextResponse.json(game);
   } catch (err) {
+    if (err instanceof GameNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
     if (err instanceof Error) {
       return NextResponse.json({ error: err.message }, { status: 422 });
     }

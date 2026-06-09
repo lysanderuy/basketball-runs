@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, clockAction } from "@/services/runs";
+import { getRunByCode, clockAction, GameNotFoundError } from "@/services/runs";
 import { clockActionSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,9 +22,12 @@ export async function PATCH(
   if (!result.success) return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
 
   try {
-    const game = await clockAction(gameId, result.data.action);
+    const game = await clockAction(gameId, run.id, result.data.action);
     return NextResponse.json(game);
   } catch (err) {
+    if (err instanceof GameNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
     if (err instanceof Error) {
       return NextResponse.json({ error: err.message }, { status: 422 });
     }

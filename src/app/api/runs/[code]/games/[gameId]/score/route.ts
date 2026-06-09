@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, recordScore, undoLastScore } from "@/services/runs";
+import { getRunByCode, recordScore, undoLastScore, GameNotFoundError } from "@/services/runs";
 import { scorePointSchema } from "@/lib/validations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,7 +40,7 @@ export async function POST(
   }
 
   try {
-    const event = await recordScore(gameId, result.data.queueEntryId, result.data.team, result.data.points);
+    const event = await recordScore(gameId, run.id, result.data.queueEntryId, result.data.team, result.data.points);
     // Record timestamp only on success so a failed score does not block the
     // next legitimate attempt. Schedule eviction after the cooldown so the
     // map does not grow unbounded across many games.
@@ -51,6 +51,9 @@ export async function POST(
     }, COOLDOWN_MS);
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
+    if (err instanceof GameNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
     if (err instanceof Error) {
       return NextResponse.json({ error: err.message }, { status: 422 });
     }
@@ -73,8 +76,14 @@ export async function PATCH(
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
   if (run.hostId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const event = await undoLastScore(gameId);
-  if (!event) return NextResponse.json({ error: "No score to undo" }, { status: 422 });
-
-  return NextResponse.json(event);
+  try {
+    const event = await undoLastScore(gameId, run.id);
+    if (!event) return NextResponse.json({ error: "No score to undo" }, { status: 422 });
+    return NextResponse.json(event);
+  } catch (err) {
+    if (err instanceof GameNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
+    throw err;
+  }
 }
