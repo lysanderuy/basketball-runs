@@ -69,7 +69,7 @@ export default function QueuePage() {
 
   async function handleStatusUpdate(entryId: string, status: "waiting" | "marked_out" | "removed") {
     setMutating((prev) => new Set(prev).add(entryId));
-    const res = await fetch(`/api/runs/${code}/queue/${entryId}`, {
+    await fetch(`/api/runs/${code}/queue/${entryId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),

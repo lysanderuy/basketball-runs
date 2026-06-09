@@ -124,7 +124,7 @@ export default function FeedPage() {
         }
       });
     return () => { supabase.removeChannel(channel); };
-  }, [run?.id, loadGames]);
+  }, [run, loadGames]);
 
   const isHost = !!userId && !!run && userId === run.hostId;
   const activeGame = games.find((g) => g.status === "active" || g.status === "pending") ?? null;
