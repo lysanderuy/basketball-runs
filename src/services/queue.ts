@@ -30,9 +30,14 @@ export async function joinQueue(
   });
 }
 
+// games_played is not a column — it is derived per request from the count of
+// completed games each entry was rostered in (see below). Callers/UI read it
+// off this shape, not off the row.
+export type QueueEntryWithGames = QueueEntry & { gamesPlayed: number };
+
 export async function getQueueForRun(
   runId: string,
-): Promise<{ onCourt: QueueEntry[]; waiting: QueueEntry[] }> {
+): Promise<{ onCourt: QueueEntryWithGames[]; waiting: QueueEntryWithGames[] }> {
   const [allEntries, activeGame] = await Promise.all([
     db
       .select()
@@ -55,7 +60,8 @@ export async function getQueueForRun(
     onCourtIds = new Set(players.map((p) => p.queueEntryId));
   }
 
-  // Compute actual games played from completed games (denormalized column is stale)
+  // Compute games played from completed games — the single source of truth for
+  // this number (there is no stored counter).
   const entryIds = allEntries.map((e) => e.id);
   const gamesPlayedMap = new Map<string, number>();
   if (entryIds.length > 0) {
@@ -79,12 +85,13 @@ export async function getQueueForRun(
     }
   }
 
-  for (const entry of allEntries) {
-    entry.gamesPlayed = gamesPlayedMap.get(entry.id) ?? 0;
-  }
+  const entries: QueueEntryWithGames[] = allEntries.map((entry) => ({
+    ...entry,
+    gamesPlayed: gamesPlayedMap.get(entry.id) ?? 0,
+  }));
 
-  const onCourt = allEntries.filter((e) => onCourtIds.has(e.id));
-  const waiting = allEntries.filter((e) => !onCourtIds.has(e.id));
+  const onCourt = entries.filter((e) => onCourtIds.has(e.id));
+  const waiting = entries.filter((e) => !onCourtIds.has(e.id));
 
   return { onCourt, waiting };
 }

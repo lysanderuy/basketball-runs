@@ -96,7 +96,6 @@ Every participant in a run — guests and account holders alike. This table is a
 | `display_name` | TEXT | No | — | Stored as entered · displayed uppercase via CSS |
 | `status` | `queue_entry_status` | No | `'waiting'` | Enum |
 | `after_entry_id` | UUID | Yes | — | FK → `queue_entries(id)` · SET NULL on delete · `NULL` = head of queue |
-| `games_played` | INTEGER | No | `0` | Denormalized counter · incremented when a game completes |
 | `joined_at` | TIMESTAMPTZ | No | `NOW()` | |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | |
 
