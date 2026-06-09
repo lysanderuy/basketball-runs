@@ -86,6 +86,17 @@ export class GameNotFoundError extends Error {
   }
 }
 
+// Thrown when a score is attributed to a queue entry that is not a player on
+// the named team of this game. The FK only enforces queue_entry_id existence,
+// not game roster membership, so without this check a point could be credited
+// to a benched player, a player from another game, or the wrong team.
+export class PlayerNotInGameError extends Error {
+  constructor() {
+    super("Player is not on this team in this game");
+    this.name = "PlayerNotInGameError";
+  }
+}
+
 export async function createGame(
   runId: string,
   teamAEntryIds: string[],
@@ -265,9 +276,31 @@ export async function recordScore(
   points: number,
 ): Promise<ScoreEvent> {
   return db.transaction(async (tx) => {
-    const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1);
+    // Row lock so a concurrent endGame (which also locks this row) cannot close
+    // the game between our status check and the score insert — serializes the
+    // read-check-insert against game completion.
+    const [game] = await tx
+      .select()
+      .from(games)
+      .where(eq(games.id, gameId))
+      .limit(1)
+      .for("update");
     if (!game || game.runId !== runId) throw new GameNotFoundError();
     if (game.status === "completed") throw new Error("Game is already completed");
+
+    // Verify the queue entry is actually a player on this team in this game.
+    const [member] = await tx
+      .select({ id: gamePlayers.id })
+      .from(gamePlayers)
+      .where(
+        and(
+          eq(gamePlayers.gameId, gameId),
+          eq(gamePlayers.queueEntryId, queueEntryId),
+          eq(gamePlayers.team, team),
+        ),
+      )
+      .limit(1);
+    if (!member) throw new PlayerNotInGameError();
 
     if (game.status === "pending") {
       await tx
