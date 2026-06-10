@@ -119,10 +119,11 @@ write past RLS, and run inside the caller's transaction (atomic, no gap).
 - Action: rewrites `queue_entries.position` to append the rotated players after the current max position, preserving their relative order. Who rotates depends on `run_format`: `host_decides` = nobody; `new_ten` or `winner = 'tie'` = everyone in the game; `winner_stays` = the losing team only.
 - **This is the single source of truth for rotation.** It fires on *every* completion path — host "End game", score-to-goal auto-complete, and the cron expiry job. Never rotate the queue from application code.
 
-### `trg_clear_sitting_out_on_game_advance` → `clear_sitting_out_on_game_advance()`
-
-- Fires: `AFTER UPDATE ON games`.
-- Action: when a game in the run first leaves `pending` (goes `active` or `completed`), clears `sitting_out = false` for every entry in that run. So a player benched for one game ("Bench for next game") resurfaces automatically the following round. Distinct from `status = 'marked_out'`, which is a hard day-long removal.
+> **Benching** ("Bench for next game" on the team-assignment screen) is **not**
+> persisted — it is local draft state only. A benched player is left `waiting`
+> and simply isn't rostered into the confirmed game, so no flag or trigger is
+> involved. (An earlier `sitting_out` column + clear-trigger were removed because
+> the draft persisted nothing else, and an abandoned draft could strand a player.)
 
 ---
 
@@ -195,9 +196,9 @@ not edit). Intended access shape:
 | `game_players` | Anyone | Host of the run | — (immutable) |
 | `score_events` | Anyone | Host of the run | Host of the run (undo / `voided_at`) |
 
-The score-sync, rotation, and sitting-out triggers run `SECURITY DEFINER` and
-intentionally bypass RLS — they are the only writers to `games.score_a/score_b`
-and to trigger-driven `queue_entries.position` / `sitting_out`.
+The score-sync and rotation triggers run `SECURITY DEFINER` and intentionally
+bypass RLS — they are the only writers to `games.score_a/score_b` and to
+trigger-driven `queue_entries.position`.
 
 ---
 

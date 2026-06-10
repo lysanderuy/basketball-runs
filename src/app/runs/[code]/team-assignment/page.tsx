@@ -102,7 +102,7 @@ export default function TeamAssignmentPage() {
     const runData: RunData | null = runRes.ok ? await runRes.json() : null;
     const queueData: {
       onCourt: Player[];
-      waiting: Array<{ id: string; displayName: string; status: string; gamesPlayed: number; sittingOut: boolean }>;
+      waiting: Array<{ id: string; displayName: string; status: string; gamesPlayed: number }>;
     } = queueRes.ok ? await queueRes.json() : { onCourt: [], waiting: [] };
     const gamesData: Array<{ gameNumber: number }> = gamesRes.ok ? await gamesRes.json() : [];
 
@@ -111,15 +111,16 @@ export default function TeamAssignmentPage() {
       gamesData.length > 0 ? Math.max(...gamesData.map((g) => g.gameNumber)) + 1 : 1,
     );
 
-    const eligible = queueData.waiting
-      .filter((e) => e.status === "waiting" && !e.sittingOut)
-      .slice(0, 10)
+    const waitingPlayers = queueData.waiting
+      .filter((e) => e.status === "waiting")
       .map((e) => ({ id: e.id, displayName: e.displayName, gamesPlayed: e.gamesPlayed }));
 
-    const benchPlayers = queueData.waiting
-      .filter((e) => e.status === "waiting" && !e.sittingOut)
-      .slice(10)
-      .map((e) => ({ id: e.id, displayName: e.displayName, gamesPlayed: e.gamesPlayed }));
+    // First 10 waiting players seed the two teams; any overflow waits on the
+    // bench. Benching is a draft-only action (local state) — it never persists,
+    // so an abandoned assignment leaves no trace and a benched player is simply
+    // first in line again next time.
+    const eligible = waitingPlayers.slice(0, 10);
+    const benchPlayers = waitingPlayers.slice(10);
 
     const half = Math.ceil(eligible.length / 2);
     setTeams({ a: eligible.slice(0, half), b: eligible.slice(half) });
@@ -182,34 +183,20 @@ export default function TeamAssignmentPage() {
     if (!res.ok) throw new Error(`PATCH status ${res.status}`);
   }
 
-  async function patchQueueSittingOut(entryId: string, sittingOut: boolean) {
-    const res = await fetch(`/api/runs/${code}/queue/${entryId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sittingOut }),
-    });
-    if (!res.ok) throw new Error(`PATCH sittingOut ${res.status}`);
-  }
-
-  // ─── Bench for this game (soft) ───────────────────────────────────────────────
+  // ─── Bench for this game (draft-only, no persistence) ─────────────────────────
 
   async function benchForGame(player: Player, team: "a" | "b") {
     setActionModal(null);
     const firstBench = bench[0] ?? null;
-    // Run the flash animation and API call in parallel.
-    // State is only updated if the API succeeds — if it fails, the card
-    // reappears naturally once the flash animation ends.
-    const [, ok] = await Promise.all([
-      flashRemove(player.id),
-      patchQueueSittingOut(player.id, true).then(() => true).catch(() => false),
-    ]);
-    if (!ok) return;
+    // Benching only edits the local draft — the player is left untouched in the
+    // DB (still 'waiting') and is simply not included when teams are confirmed.
+    // The flash animation runs purely for visual feedback before the card leaves.
+    await flashRemove(player.id);
     setTeams((prev) => ({ ...prev, [team]: prev[team].filter((p) => p.id !== player.id) }));
     setSuggestion(firstBench ? { player: firstBench, forTeam: team } : null);
     pushUndo(`Benched ${player.displayName}`, async () => {
       setTeams((prev) => ({ ...prev, [team]: [...prev[team], player] }));
       setSuggestion(null);
-      await patchQueueSittingOut(player.id, false);
     });
   }
 

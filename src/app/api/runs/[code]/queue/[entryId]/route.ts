@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queueEntryPatchSchema } from "@/lib/validations";
 import { getRunByCode } from "@/services/runs";
-import { updateQueueEntryStatus, updateQueueEntrySittingOut } from "@/services/queue";
+import { updateQueueEntryStatus } from "@/services/queue";
 import { createClient } from "@/lib/supabase/server";
 
 // PATCH /api/runs/[code]/queue/[entryId]
-// Accepts { status } or { sittingOut } — host only.
+// Accepts { status } — host only.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ code: string; entryId: string }> },
@@ -32,10 +32,7 @@ export async function PATCH(
     return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
   }
 
-  const entry =
-    "status" in result.data
-      ? await updateQueueEntryStatus(entryId, result.data.status)
-      : await updateQueueEntrySittingOut(entryId, result.data.sittingOut);
+  const entry = await updateQueueEntryStatus(entryId, result.data.status);
 
   if (!entry) {
     return NextResponse.json({ error: "Queue entry not found" }, { status: 404 });

@@ -108,14 +108,3 @@ export async function updateQueueEntryStatus(
   return entry ?? null;
 }
 
-export async function updateQueueEntrySittingOut(
-  entryId: string,
-  sittingOut: boolean,
-): Promise<QueueEntry | null> {
-  const [entry] = await db
-    .update(queueEntries)
-    .set({ sittingOut, updatedAt: new Date() })
-    .where(eq(queueEntries.id, entryId))
-    .returning();
-  return entry ?? null;
-}

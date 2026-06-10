@@ -4,7 +4,6 @@ import {
   uuid,
   text,
   integer,
-  boolean,
   timestamp,
   index,
   uniqueIndex,
@@ -93,10 +92,6 @@ export const queueEntries = pgTable(
     status: queueEntryStatus("status").notNull().default("waiting"),
     // Integer position for queue ordering — lower = front of queue
     position: integer("position").notNull().default(0),
-    // True = player chose to sit out the current game being assembled.
-    // Auto-cleared by DB trigger when the relevant game transitions to active/completed.
-    // Intentionally separate from status='marked_out' (which is a hard day-long removal).
-    sittingOut: boolean("sitting_out").notNull().default(false),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

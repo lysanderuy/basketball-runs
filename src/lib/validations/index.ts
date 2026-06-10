@@ -22,13 +22,12 @@ export const joinRunSchema = z.object({
 
 export type JoinRunInput = z.infer<typeof joinRunSchema>;
 
-// Combined PATCH schema — accepts either a status update OR a sittingOut toggle.
-// Used by the queue-entry PATCH route so both the queue page (status) and the
-// team-assignment page (sittingOut) can share the same endpoint.
-export const queueEntryPatchSchema = z.union([
-  z.object({ status: z.enum(["waiting", "marked_out", "removed"]) }),
-  z.object({ sittingOut: z.boolean() }),
-]);
+// PATCH schema for a queue entry — status changes only (reinstate / mark out /
+// remove). Benching is handled entirely in the team-assignment draft state and
+// never hits this endpoint.
+export const queueEntryPatchSchema = z.object({
+  status: z.enum(["waiting", "marked_out", "removed"]),
+});
 
 export type QueueEntryPatchInput = z.infer<typeof queueEntryPatchSchema>;
 
