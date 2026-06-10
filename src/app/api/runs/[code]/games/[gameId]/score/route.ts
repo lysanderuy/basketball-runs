@@ -69,6 +69,9 @@ export async function PATCH(
     if (err instanceof GameNotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 });
     }
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 422 });
+    }
     throw err;
   }
 }

@@ -375,29 +375,37 @@ export async function recordScore(
 }
 
 export async function undoLastScore(gameId: string, runId: string): Promise<ScoreEvent | null> {
-  const [game] = await db
-    .select({ runId: games.runId })
-    .from(games)
-    .where(eq(games.id, gameId))
-    .limit(1);
-  if (!game || game.runId !== runId) throw new GameNotFoundError();
+  return db.transaction(async (tx) => {
+    // Row lock so a concurrent recordScore/endGame (which lock the same row)
+    // serializes against the void, and two rapid undos cannot both read the
+    // same "last" event. Also blocks voiding after the game is completed,
+    // which would change the score without re-evaluating winner or rotation.
+    const [game] = await tx
+      .select()
+      .from(games)
+      .where(eq(games.id, gameId))
+      .limit(1)
+      .for("update");
+    if (!game || game.runId !== runId) throw new GameNotFoundError();
+    if (game.status === "completed") throw new Error("Game is already completed");
 
-  const [event] = await db
-    .select()
-    .from(scoreEvents)
-    .where(and(eq(scoreEvents.gameId, gameId), isNull(scoreEvents.voidedAt)))
-    .orderBy(desc(scoreEvents.createdAt))
-    .limit(1);
+    const [event] = await tx
+      .select()
+      .from(scoreEvents)
+      .where(and(eq(scoreEvents.gameId, gameId), isNull(scoreEvents.voidedAt)))
+      .orderBy(desc(scoreEvents.createdAt))
+      .limit(1);
 
-  if (!event) return null;
+    if (!event) return null;
 
-  const [updated] = await db
-    .update(scoreEvents)
-    .set({ voidedAt: new Date() })
-    .where(eq(scoreEvents.id, event.id))
-    .returning();
+    const [updated] = await tx
+      .update(scoreEvents)
+      .set({ voidedAt: new Date() })
+      .where(eq(scoreEvents.id, event.id))
+      .returning();
 
-  return updated;
+    return updated;
+  });
 }
 
 // ─── Clock ────────────────────────────────────────────────────────────────────
