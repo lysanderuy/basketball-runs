@@ -347,11 +347,14 @@ export default function GamePage() {
 
   const isHost = !!userId && !!run && userId === run.hostId;
 
-  // ─── Clock ticker — driven by run's timeLimitSeconds, not the game snapshot ──
+  // ─── Clock ticker — driven by the game's own time limit ──────────────────────
+  // Use games.time_limit_seconds (snapshotted at game creation), the same value
+  // the server-side cron expiry checks. Reading run.timeLimitSeconds here would
+  // diverge if run settings ever became editable mid-run.
 
   useEffect(() => {
     if (!details || !run) return;
-    const timeLimit = run.timeLimitSeconds ?? null;
+    const timeLimit = details.game.timeLimitSeconds ?? null;
 
     const initial = getClockDisplay(details.game, timeLimit);
     setClockDisplay(initial);
@@ -381,7 +384,7 @@ export default function GamePage() {
   const teamA = details?.players.filter((p) => p.team === "team_a") ?? [];
   const teamB = details?.players.filter((p) => p.team === "team_b") ?? [];
   const scoreGoal = game?.scoreGoal ?? run?.scoreGoal ?? 21;
-  const hasTimeLimit = (run?.timeLimitSeconds ?? null) !== null;
+  const hasTimeLimit = (game?.timeLimitSeconds ?? null) !== null;
   const clockWarning = hasTimeLimit && clockDisplay <= 60 && clockDisplay > 0;
   const clockAction = !game?.clockStartedAt ? "Start" : game.clockPausedAt ? "Resume" : "Pause";
 
