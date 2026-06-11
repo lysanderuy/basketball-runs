@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode } from "@/services/runs";
+import { NextRequest } from "next/server";
+import { getRunByCode } from "@/services/run.service";
+import { apiSuccess, apiError } from "@/lib/api/response";
 
 // GET /api/runs/[code] — fetch run by session code
 export async function GET(
@@ -11,8 +12,8 @@ export async function GET(
   const run = await getRunByCode(code);
 
   if (!run) {
-    return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    return apiError("NOT_FOUND", "Run not found", 404);
   }
 
-  return NextResponse.json(run);
+  return apiSuccess(run);
 }

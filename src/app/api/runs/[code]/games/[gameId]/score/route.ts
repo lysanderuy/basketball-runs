@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, recordScore, undoLastScore, GameNotFoundError, DuplicateScoreError } from "@/services/runs";
-import { scorePointSchema } from "@/lib/validations";
+import { NextRequest } from "next/server";
+import { getRunByCode } from "@/services/run.service";
+import { recordScore, undoLastScore } from "@/services/game.service";
+import { scorePointSchema } from "@/validators";
 import { createClient } from "@/lib/supabase/server";
+import { apiSuccess, apiError, handleApiError } from "@/lib/api/response";
 
 export async function POST(
   req: NextRequest,
@@ -10,39 +12,33 @@ export async function POST(
   const { code, gameId } = await params;
 
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = (data?.claims?.sub as string | undefined) ?? null;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userId = user?.id ?? null;
+  if (!userId) return apiError("UNAUTHORIZED", "Unauthorized", 401);
 
   const run = await getRunByCode(code);
-  if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
-  if (run.hostId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!run) return apiError("NOT_FOUND", "Run not found", 404);
+  if (run.hostId !== userId) return apiError("FORBIDDEN", "Forbidden", 403);
 
   const result = scorePointSchema.safeParse(await req.json());
-  if (!result.success) return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+  if (!result.success) return apiError("VALIDATION", "Invalid request payload", 400, result.error.flatten());
 
   const allowedPoints = run.pointSystem === "one_two" ? [1, 2] : [2, 3];
-  if (!allowedPoints.includes(result.data.points)) {
-    return NextResponse.json(
-      { error: `Invalid points for this run's point system (${run.pointSystem})` },
-      { status: 400 },
-    );
-  }
 
   try {
-    const event = await recordScore(gameId, run.id, result.data.queueEntryId, result.data.team, result.data.points);
-    return NextResponse.json(event, { status: 201 });
+    const event = await recordScore(
+      gameId,
+      run.id,
+      result.data.queueEntryId,
+      result.data.team,
+      result.data.points,
+      allowedPoints,
+    );
+    return apiSuccess(event, 201);
   } catch (err) {
-    if (err instanceof GameNotFoundError) {
-      return NextResponse.json({ error: err.message }, { status: 404 });
-    }
-    if (err instanceof DuplicateScoreError) {
-      return NextResponse.json({ error: err.message }, { status: 429 });
-    }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 422 });
-    }
-    throw err;
+    return handleApiError(err);
   }
 }
 
@@ -53,25 +49,21 @@ export async function PATCH(
   const { code, gameId } = await params;
 
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = (data?.claims?.sub as string | undefined) ?? null;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userId = user?.id ?? null;
+  if (!userId) return apiError("UNAUTHORIZED", "Unauthorized", 401);
 
   const run = await getRunByCode(code);
-  if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
-  if (run.hostId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!run) return apiError("NOT_FOUND", "Run not found", 404);
+  if (run.hostId !== userId) return apiError("FORBIDDEN", "Forbidden", 403);
 
   try {
     const event = await undoLastScore(gameId, run.id);
-    if (!event) return NextResponse.json({ error: "No score to undo" }, { status: 422 });
-    return NextResponse.json(event);
+    if (!event) return apiError("NO_SCORE_TO_UNDO", "No score to undo", 422);
+    return apiSuccess(event);
   } catch (err) {
-    if (err instanceof GameNotFoundError) {
-      return NextResponse.json({ error: err.message }, { status: 404 });
-    }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 422 });
-    }
-    throw err;
+    return handleApiError(err);
   }
 }

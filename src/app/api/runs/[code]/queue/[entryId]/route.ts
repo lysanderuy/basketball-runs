@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { queueEntryPatchSchema } from "@/lib/validations";
-import { getRunByCode } from "@/services/runs";
-import { updateQueueEntryStatus } from "@/services/queue";
+import { NextRequest } from "next/server";
+import { queueEntryPatchSchema } from "@/validators";
+import { getRunByCode } from "@/services/run.service";
+import { updateQueueEntryStatus } from "@/services/queue.service";
 import { createClient } from "@/lib/supabase/server";
+import { apiSuccess, apiError } from "@/lib/api/response";
 
 // PATCH /api/runs/[code]/queue/[entryId]
 // Accepts { status } — host only.
@@ -13,30 +14,32 @@ export async function PATCH(
   const { code, entryId } = await params;
 
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = (data?.claims?.sub as string | undefined) ?? null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userId = user?.id ?? null;
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const run = await getRunByCode(code);
   if (!run) {
-    return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    return apiError("NOT_FOUND", "Run not found", 404);
   }
   if (run.hostId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiError("FORBIDDEN", "Forbidden", 403);
   }
 
   const result = queueEntryPatchSchema.safeParse(await req.json());
   if (!result.success) {
-    return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+    return apiError("VALIDATION", "Invalid request payload", 400, result.error.flatten());
   }
 
-  const entry = await updateQueueEntryStatus(entryId, result.data.status);
+  const entry = await updateQueueEntryStatus(run.id, entryId, result.data.status);
 
   if (!entry) {
-    return NextResponse.json({ error: "Queue entry not found" }, { status: 404 });
+    return apiError("NOT_FOUND", "Queue entry not found", 404);
   }
 
-  return NextResponse.json(entry);
+  return apiSuccess(entry);
 }

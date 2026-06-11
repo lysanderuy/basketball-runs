@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getRunByCode, getGamesByRunId, createGame, InvalidEntryIdsError, OngoingGameError } from "@/services/runs";
-import { createGameSchema } from "@/lib/validations";
+import { NextRequest } from "next/server";
+import { getRunByCode } from "@/services/run.service";
+import { getGamesByRunId, createGame } from "@/services/game.service";
+import { createGameSchema } from "@/validators";
 import { createClient } from "@/lib/supabase/server";
+import { apiSuccess, apiError, handleApiError } from "@/lib/api/response";
 
 export async function GET(
   _req: NextRequest,
@@ -10,10 +12,10 @@ export async function GET(
   const { code } = await params;
   const run = await getRunByCode(code);
   if (!run) {
-    return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    return apiError("NOT_FOUND", "Run not found", 404);
   }
   const games = await getGamesByRunId(run.id);
-  return NextResponse.json(games);
+  return apiSuccess(games);
 }
 
 export async function POST(
@@ -23,36 +25,32 @@ export async function POST(
   const { code } = await params;
 
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = (data?.claims?.sub as string | undefined) ?? null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userId = user?.id ?? null;
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const run = await getRunByCode(code);
   if (!run) {
-    return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    return apiError("NOT_FOUND", "Run not found", 404);
   }
 
   if (run.hostId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiError("FORBIDDEN", "Forbidden", 403);
   }
 
   const result = createGameSchema.safeParse(await req.json());
   if (!result.success) {
-    return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+    return apiError("VALIDATION", "Invalid request payload", 400, result.error.flatten());
   }
 
   try {
     const game = await createGame(run.id, result.data.teamA, result.data.teamB);
-    return NextResponse.json(game, { status: 201 });
+    return apiSuccess(game, 201);
   } catch (err) {
-    if (err instanceof OngoingGameError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
-    }
-    if (err instanceof InvalidEntryIdsError) {
-      return NextResponse.json({ error: err.message }, { status: 422 });
-    }
-    throw err;
+    return handleApiError(err);
   }
 }
