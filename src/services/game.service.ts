@@ -1,67 +1,11 @@
-import { db } from "@/lib/db";
-import { runs, games, gamePlayers, queueEntries, scoreEvents } from "@/lib/db/schema";
-import { eq, count, desc, inArray, and, or, sql, isNull } from "drizzle-orm";
-import type { CreateRunInput } from "@/lib/validations";
-import type { Run, Game, ScoreEvent } from "@/types/db";
-
-export async function getRunByCode(code: string) {
-  const [run] = await db
-    .select()
-    .from(runs)
-    .where(eq(runs.sessionCode, code))
-    .limit(1);
-  return run ?? null;
-}
-
-export async function getRunsForUser(userId: string) {
-  const joined = await db
-    .selectDistinct({ runId: queueEntries.runId })
-    .from(queueEntries)
-    .where(eq(queueEntries.userId, userId));
-
-  const joinedIds = joined.map((e) => e.runId);
-  const condition =
-    joinedIds.length > 0
-      ? or(eq(runs.hostId, userId), inArray(runs.id, joinedIds))
-      : eq(runs.hostId, userId);
-
-  return db
-    .select({
-      id: runs.id,
-      hostId: runs.hostId,
-      name: runs.name,
-      location: runs.location,
-      status: runs.status,
-      sessionCode: runs.sessionCode,
-      createdAt: runs.createdAt,
-      gameCount: count(games.id),
-    })
-    .from(runs)
-    .leftJoin(games, eq(games.runId, runs.id))
-    .where(condition)
-    .groupBy(runs.id)
-    .orderBy(desc(runs.createdAt));
-}
-
-export async function getActiveRunByHostId(hostId: string): Promise<Run | null> {
-  const [run] = await db
-    .select()
-    .from(runs)
-    .where(and(eq(runs.hostId, hostId), inArray(runs.status, ["lobby", "active"])))
-    .limit(1);
-  return run ?? null;
-}
-
-export async function getGamesByRunId(runId: string): Promise<Game[]> {
-  return db
-    .select()
-    .from(games)
-    .where(eq(games.runId, runId))
-    .orderBy(desc(games.gameNumber));
-}
+import { db } from "@/db";
+import { runs, games, gamePlayers, queueEntries, scoreEvents } from "@/db/schema";
+import { eq, desc, inArray, and, or, sql, isNull } from "drizzle-orm";
+import { RunNotFoundError } from "@/services/run.service";
+import type { Game, ScoreEvent } from "@/types/db";
 
 // Thrown when submitted queue entry IDs do not belong to the target run.
-// The route catches this and returns 422 rather than letting it bubble as 500.
+// The route catches this and returns 400 rather than letting it bubble as 500.
 export class InvalidEntryIdsError extends Error {
   constructor() {
     super("One or more queue entry IDs do not belong to this run");
@@ -83,6 +27,15 @@ export class GameNotFoundError extends Error {
   constructor() {
     super("Game not found");
     this.name = "GameNotFoundError";
+  }
+}
+
+// Thrown when a mutation targets a game that has already completed. Maps to
+// 409 — completed games are immutable (no scores, undos, or clock actions).
+export class GameCompletedError extends Error {
+  constructor() {
+    super("Game is already completed");
+    this.name = "GameCompletedError";
   }
 }
 
@@ -109,10 +62,30 @@ export class DuplicateScoreError extends Error {
   }
 }
 
+// Thrown when a score event is submitted with a point value that does not
+// belong to the run's point system (e.g. 3 on a 1-2 run, or 1 on a 2-3 run).
+// The route resolves the allowed set from run.pointSystem and passes it in;
+// this check rejects before any DB work so we don't acquire a FOR UPDATE lock
+// on input the database would silently accept.
+export class InvalidPointsError extends Error {
+  constructor() {
+    super("Invalid points for this run's point system");
+    this.name = "InvalidPointsError";
+  }
+}
+
 // Window for treating an identical score event as an accidental duplicate. Short
 // enough that no human can legitimately register two identical baskets for the
 // same player this fast.
 const SCORE_DEDUP_MS = 600;
+
+export async function getGamesByRunId(runId: string): Promise<Game[]> {
+  return db
+    .select()
+    .from(games)
+    .where(eq(games.runId, runId))
+    .orderBy(desc(games.gameNumber));
+}
 
 export async function createGame(
   runId: string,
@@ -120,7 +93,7 @@ export async function createGame(
   teamBEntryIds: string[],
 ): Promise<Game> {
   const [run] = await db.select().from(runs).where(eq(runs.id, runId)).limit(1);
-  if (!run) throw new Error("Run not found");
+  if (!run) throw new RunNotFoundError();
 
   // Verify all submitted entry IDs actually belong to this run before acquiring
   // any locks. The FK only enforces queue_entry_id → queue_entries.id, not run
@@ -174,27 +147,6 @@ export async function createGame(
 
     return game;
   });
-}
-
-export async function closeRun(runId: string): Promise<Run> {
-  const [updated] = await db
-    .update(runs)
-    .set({ status: "completed" })
-    .where(eq(runs.id, runId))
-    .returning();
-  if (!updated) throw new Error("Run not found");
-  return updated;
-}
-
-export async function createRun(
-  input: CreateRunInput & { hostId: string }
-): Promise<Run> {
-  const { hostId, name, location, format, sessionCode, scoreGoal, pointSystem, timeLimitSeconds } = input;
-  const [run] = await db
-    .insert(runs)
-    .values({ hostId, name, location, format, sessionCode, scoreGoal, pointSystem, timeLimitSeconds })
-    .returning();
-  return run;
 }
 
 // ─── Game detail types ────────────────────────────────────────────────────────
@@ -291,7 +243,9 @@ export async function recordScore(
   queueEntryId: string,
   team: "team_a" | "team_b",
   points: number,
+  allowedPoints: number[],
 ): Promise<ScoreEvent> {
+  if (!allowedPoints.includes(points)) throw new InvalidPointsError();
   return db.transaction(async (tx) => {
     // Row lock so a concurrent endGame (which also locks this row) cannot close
     // the game between our status check and the score insert — serializes the
@@ -303,7 +257,7 @@ export async function recordScore(
       .limit(1)
       .for("update");
     if (!game || game.runId !== runId) throw new GameNotFoundError();
-    if (game.status === "completed") throw new Error("Game is already completed");
+    if (game.status === "completed") throw new GameCompletedError();
 
     // Verify the queue entry is actually a player on this team in this game.
     const [member] = await tx
@@ -387,7 +341,7 @@ export async function undoLastScore(gameId: string, runId: string): Promise<Scor
       .limit(1)
       .for("update");
     if (!game || game.runId !== runId) throw new GameNotFoundError();
-    if (game.status === "completed") throw new Error("Game is already completed");
+    if (game.status === "completed") throw new GameCompletedError();
 
     const [event] = await tx
       .select()
@@ -417,6 +371,7 @@ export async function clockAction(
 ): Promise<Game> {
   const [game] = await db.select().from(games).where(eq(games.id, gameId)).limit(1);
   if (!game || game.runId !== runId) throw new GameNotFoundError();
+  if (game.status === "completed") throw new GameCompletedError();
 
   const now = new Date();
 

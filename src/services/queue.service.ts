@@ -1,5 +1,5 @@
-import { db } from "@/lib/db";
-import { queueEntries, games, gamePlayers } from "@/lib/db/schema";
+import { db } from "@/db";
+import { queueEntries, games, gamePlayers } from "@/db/schema";
 import { eq, and, ne, sql, inArray, asc } from "drizzle-orm";
 import type { QueueEntry } from "@/types/db";
 
@@ -97,14 +97,14 @@ export async function getQueueForRun(
 }
 
 export async function updateQueueEntryStatus(
+  runId: string,
   entryId: string,
   status: "waiting" | "marked_out" | "removed",
 ): Promise<QueueEntry | null> {
   const [entry] = await db
     .update(queueEntries)
     .set({ status, updatedAt: new Date() })
-    .where(eq(queueEntries.id, entryId))
+    .where(and(eq(queueEntries.id, entryId), eq(queueEntries.runId, runId)))
     .returning();
   return entry ?? null;
 }
-
