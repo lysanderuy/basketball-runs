@@ -44,70 +44,132 @@ BallRuns keeps the chaos out of pickup basketball. Hosts create a run and share 
 
 ## Stack
 
-- **Next.js 15** (App Router) + React 19 + TypeScript (strict)
-- **Supabase** — PostgreSQL, Auth, Realtime
-- **Drizzle ORM** for typed schema access
-- **node-pg-migrate** (JS builder API) for migrations
-- **Zod** for validation
-- **Tailwind CSS** + **Radix UI** primitives
+| Layer | Tool |
+|---|---|
+| Framework | Next.js 15 (App Router) + React 19 |
+| Language | TypeScript — strict mode |
+| Database | Supabase (PostgreSQL) + Supabase Auth + Supabase Realtime |
+| Auth | `@supabase/ssr` |
+| ORM | Drizzle ORM |
+| Migrations | `node-pg-migrate` (JS builder API) |
+| Validation | Zod |
+| HTTP envelope | `src/lib/api/` + `src/types/api.ts` |
+| Server state | TanStack Query (`src/hooks`) |
+| UI-only state | Zustand (`src/stores`) |
+| Styling | Tailwind CSS |
+| UI primitives | Radix UI |
 
 ## Project Structure
+
+The layout reads **frontend in `app/`, infra in `lib/`, persistence in `db/`**. Drizzle is not under `lib/` — it has its own top-level tree. Zod schemas live in `validators/`, never inside services or routes.
 
 ```
 basketball-runs/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                  Landing
-│   │   ├── auth/                     Login, signup, OAuth callback
-│   │   ├── (protected)/              Host-only pages (create-run, history, account)
+│   │   ├── page.tsx                        Landing
+│   │   ├── (auth)/                         Login, signup — route group (URLs: /login, /signup)
+│   │   │   ├── login/
+│   │   │   ├── signup/
+│   │   │   └── actions.ts                  "use server" — Supabase auth SDK direct (the only exception)
+│   │   ├── (protected)/                    Auth-guarded — middleware redirects guests
+│   │   │   ├── create-run/
+│   │   │   ├── history/                    All runs for the signed-in host
+│   │   │   └── account/
 │   │   ├── runs/[code]/
-│   │   │   ├── layout.tsx            Passthrough — no data fetch
-│   │   │   ├── join/                 Guest join flow
-│   │   │   ├── team-assignment/      Assign players to teams before tip-off
-│   │   │   ├── results/              Post-game summary
-│   │   │   └── (session)/            Pages with bottom nav
-│   │   │       ├── layout.tsx        BottomNav wrapper
-│   │   │       ├── game/             Live game management
-│   │   │       ├── queue/            Queue view
-│   │   │       ├── feed/             Run feed (game list)
-│   │   │       └── feed/[gameId]/    Single game detail
-│   │   └── api/                      All HTTP endpoints (runs, games, queue, score, clock)
-│   ├── components/                   Shared UI components
-│   ├── hooks/                        Client-side Realtime subscriptions
-│   ├── lib/
-│   │   ├── db/                       Drizzle schema + client
-│   │   ├── supabase/                 Browser, server, and middleware clients
-│   │   ├── validations/              Zod schemas
-│   │   └── utils.ts                  Pure utility helpers
-│   ├── services/                     Business logic — called by API routes only
-│   ├── types/                        Drizzle-inferred types
-│   └── middleware.ts                 Auth guard for (protected) routes
+│   │   │   ├── layout.tsx                  Passthrough — no data fetch
+│   │   │   ├── join/                       Guest join flow
+│   │   │   ├── team-assignment/            Assign players to teams before tip-off
+│   │   │   ├── results/                    Post-game summary
+│   │   │   └── (session)/                  Pages with bottom nav
+│   │   │       ├── layout.tsx              BottomNav wrapper
+│   │   │       ├── game/                   Live game management
+│   │   │       ├── queue/                  Queue view
+│   │   │       ├── feed/                   Run feed (game list)
+│   │   │       └── feed/[gameId]/          Single game detail
+│   │   └── api/                            All HTTP endpoints — thin: auth + Zod + delegate
+│   │       ├── auth/callback/
+│   │       ├── runs/
+│   │       │   └── [code]/
+│   │       │       ├── status/
+│   │       │       ├── games/
+│   │       │       │   └── [gameId]/       GET detail · PATCH end game
+│   │       │       │       ├── clock/
+│   │       │       │       └── score/
+│   │       │       └── queue/
+│   │       │           └── [entryId]/
+│   │       └── users/
+│   │           └── me/
+│   ├── components/                         Shared UI components
+│   ├── hooks/                              Client-side hooks — TanStack Query + Realtime (use-*.ts)
+│   ├── stores/                             Zustand stores — UI-only state ONLY (never API data)
+│   ├── lib/                                Helpers + clients + infra config ONLY
+│   │   ├── api/                            HTTP envelope (client.ts · response.ts)
+│   │   ├── env.ts                          Zod-validated env vars (server only, lazy)
+│   │   ├── query/                          QueryClient setup
+│   │   ├── supabase/                       Browser, server, and middleware clients
+│   │   └── utils.ts                        Pure utility helpers
+│   ├── services/                           Business logic + DB access (*.service.ts)
+│   ├── validators/                         Zod schemas (*.validator.ts) — input source of truth
+│   └── types/
+│       ├── api.ts                          ApiResponse<T> envelope
+│       └── db.ts                           Drizzle inferred types
+│   ├── db/                                 Drizzle ORM (NOT lib/)
+│   │   ├── index.ts                        Drizzle client (postgres.js, pooler-safe, lazy)
+│   │   └── schema/
+│   │       ├── index.ts                    Barrel: tables, enums, relations
+│   │       ├── enums.ts                    pgEnum definitions
+│   │       ├── users.ts
+│   │       ├── runs.ts
+│   │       ├── queue-entries.ts
+│   │       ├── games.ts
+│   │       ├── game-players.ts
+│   │       ├── score-events.ts
+│   │       └── relations.ts                ALL relations() declarations
+│   └── middleware → src/lib/supabase/proxy.ts  (see Auth Model)
 ├── db/
-│   └── migrations/                   node-pg-migrate JS files
-├── docs/                             Product brief, schema reference, design notes
+│   └── migrations/                         node-pg-migrate JS files (NOT under src/)
+├── docs/                                   Product brief, schema reference, design notes
 ├── tools/
-│   └── run-pg-migrate.mjs            Migration runner (loads DIRECT_URL)
+│   └── run-pg-migrate.mjs                  Migration runner (loads DIRECT_URL)
 ├── tailwind.config.ts
 ├── next.config.ts
-└── proxy.ts                          Next.js 15 instrumentation proxy
+└── proxy.ts                                Next.js 15 instrumentation proxy (not auth)
 ```
 
 ## Data Flow
 
-One direction only:
+One direction only — never skip a layer.
 
 ```
-UI (pages/components)
-  → fetch /api/...
-    → app/api/**/route.ts       validate with Zod, call service
-      → services/               business logic, no HTTP knowledge
-        → lib/db/               Drizzle queries only
+page / client component
+  │  TanStack Query hook (src/hooks/use-<thing>.ts)
+  ▼
+api wrapper (src/lib/api/client.ts)        ← single source of HTTP from the browser
+  │  ApiResponse<T> envelope
+  ▼
+route handler (src/app/api/**/route.ts)    ← thin: auth + Zod + delegate
+  │                                          responds with apiSuccess / apiError
+  ▼
+service (src/services/<thing>.service.ts)  ← ALL business logic + DB access
+  │
+  ▼
+db (src/db, Drizzle) / Supabase
 ```
 
-- UI never imports from `services/`.
-- Services never import from `app/`.
-- API routes never contain business logic — they validate and delegate.
-- Server Components may read from Supabase directly for page data fetching. Writes always go through API routes.
+**Strict layer rules — no exceptions for app data:**
+
+- **Client components NEVER import from `src/services`, `src/db`, or `src/lib/supabase/{client,proxy}`.** They reach the backend only through `src/hooks` → the api wrapper.
+- **Server Components NEVER import from `src/services` or `src/db`.** They reach the backend only through `fetch('/api/...')` parsed as the `ApiResponse<T>` envelope. There is no Server-Component shortcut.
+- **Route handlers stay thin:** authenticate (`createClient()` from `src/lib/supabase/server` + `auth.getUser()`), validate with Zod (`safeParse` — never `parse`), delegate to a service, respond with `apiSuccess` / `apiError` / `handleApiError` from `src/lib/api/response.ts`. No business logic, no DB queries, no direct Drizzle.
+- **Services own ALL business logic and DB access.** They never touch `Request` / `Response` / `cookies`. They take plain typed inputs (including the authenticated `userId`) and scope every query to that user. Validation does not live here — services trust their inputs.
+- **Auth exception:** `src/app/(auth)/actions.ts` calls the Supabase SDK directly to manage auth cookies. It is the only place outside `lib/supabase/` allowed to do so. **App data never uses the Supabase SDK directly.**
+
+**State boundaries:**
+
+- API data → TanStack Query (`src/hooks`). Invalidate on Realtime events; never mirror into `useState` or Zustand.
+- UI-only state → Zustand (`src/stores`). Drafts, toasts, drag previews — never API payloads.
+- Auth context for the current session → `useSessionUser` hook (TanStack Query, `staleTime: Infinity`).
 
 ## Schema Highlights
 
@@ -143,7 +205,7 @@ App runs at [localhost:3000](http://localhost:3000).
 
 ## Migrations
 
-Drizzle Kit is not used. Migrations are JS files in `db/migrations/`, applied via `node-pg-migrate` against `DIRECT_URL`.
+Drizzle Kit is **not used**. Migrations are JS files in `db/migrations/` (project root — not under `src/`), applied via `node-pg-migrate` against `DIRECT_URL`. `src/db/` is the Drizzle source-of-truth only.
 
 ```bash
 # Scaffold a new migration
@@ -157,9 +219,10 @@ npm run db:migrate:down
 ```
 
 - Never edit a migration file after it has been applied — write a new one.
-- Keep `src/lib/db/schema.ts` in sync with migration changes manually.
+- Keep `src/db/schema/<table>.ts` in sync with migration changes manually.
 - RLS policies and triggers go in migration files using `pgm.sql()`.
 - `supabase/migrations/` contains legacy SQL files (already applied) — do not touch.
+- Runner script: `tools/run-pg-migrate.mjs` — loads `DIRECT_URL` from `.env`.
 
 ## Scripts
 
@@ -182,12 +245,29 @@ npm run db:migrate:down
 | Player | Guest (optional) | Join queue, view live score |
 | Spectator | Guest | Read-only |
 
-- `src/middleware.ts` is the auth enforcement layer — redirects unauthenticated users away from `/create-run`, `/history`, `/account`.
-- RLS enforces authorization at the DB level — do not re-implement access checks in services.
+- `src/lib/supabase/proxy.ts` is the auth enforcement layer — it refreshes the session on every request and redirects unauthenticated users away from `/create-run`, `/history`, `/account`.
+- `(protected)/layout.tsx` is a pure passthrough — do not add auth checks here.
+- In API routes, authenticate with `createClient()` from `src/lib/supabase/server` + `auth.getUser()`. Pass the resolved `userId` to the service. The service scopes every query to that `userId` (or to a `runId` that the route has already resolved to be owned by `userId`).
+- RLS enforces authorization at the DB level as a second line — do not re-implement access checks in services, but do pass `userId` in so the service can scope its queries.
 - Guest mutations (join queue) go through API routes — RLS `WITH CHECK (true)` allows them.
+
+## UI Priorities
+
+This is a **mobile-first web app** — players use it on their phones at the court.
+
+- Always design for mobile first. Tailwind: start with base (mobile) styles, add `md:` / `lg:` breakpoints only for desktop enhancement.
+- Touch targets minimum 44px. Tap-friendly spacing.
+- Bottom nav is the primary navigation — do not replace with sidebars or top-heavy layouts.
+- Avoid hover-only interactions — use tap/press states.
+- Desktop layout is a nice-to-have, not a requirement.
+
+## Authoritative Source
+
+For full project rules (data flow, schema invariants, migration rules, what-not-to-do), see [CLAUDE.md](./CLAUDE.md). It is the single source of truth — README points to it for anything that could drift.
 
 ## References
 
+- Authoritative project rules: [CLAUDE.md](./CLAUDE.md)
+- Agent entry point: [AGENTS.md](./AGENTS.md) (defers to CLAUDE.md)
 - Product brief: `docs/ballruns-product-brief.md`
 - Schema reference: `docs/ballruns-schema.md`
-- Authoritative project rules: `CLAUDE.md`

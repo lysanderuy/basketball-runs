@@ -15,6 +15,9 @@ This file governs every AI session in this repo. Read it fully before touching a
 | Migrations | `node-pg-migrate` — JS builder API (`db/migrations/`) |
 | Auth | Supabase Auth + `@supabase/ssr` |
 | Validation | Zod |
+| HTTP envelope | `src/lib/api/` + `src/types/api.ts` |
+| Server state | TanStack Query (`src/hooks`) |
+| UI-only state | Zustand (`src/stores`) |
 | Styling | Tailwind CSS |
 | UI primitives | Radix UI |
 
@@ -34,14 +37,15 @@ This is a **mobile-first web app**. Players use it on their phones at the court.
 
 ## Project Structure
 
-All paths below live under `src/` (e.g. `src/app`, `src/services`, `src/lib`).
+All paths below live under `src/`. The Drizzle client and schema live under `src/db/` — **not** under `src/lib/`. `src/lib/` is for "helpers + clients + infra config" (`lib/supabase/`, `lib/api/`, `lib/env.ts`, `lib/utils.ts`, `lib/query/`); persistence gets its own top-level tree so the layout reads as "frontend in `app/`, infra in `lib/`, persistence in `db/`."
 
 ```
 app/
 ├── page.tsx                        Landing
-├── auth/
+├── (auth)/                         Login, signup — route group (URLs: /login, /signup)
 │   ├── login/
-│   └── signup/
+│   ├── signup/
+│   └── actions.ts                  "use server" — Supabase auth SDK direct (the only exception)
 ├── (protected)/                    Auth-guarded — middleware redirects guests
 │   ├── create-run/
 │   ├── history/                    All runs for the signed-in host
@@ -57,7 +61,7 @@ app/
 │       ├── queue/                  Queue view
 │       ├── feed/                   Run feed (game list)
 │       └── feed/[gameId]/          Single game detail
-└── api/                            All HTTP endpoints
+└── api/                            All HTTP endpoints — thin: auth + Zod + delegate
     ├── auth/callback/
     ├── runs/
     │   └── [code]/
@@ -71,21 +75,42 @@ app/
     └── users/
         └── me/
 
+components/
+└── ui/                             Generic primitives + app-specific composed pieces
+
+hooks/                              Client-side React hooks (use-*.ts)
+stores/                             Zustand stores — UI-only state ONLY (never API data)
+                                    Naming: <thing>.store.ts
 lib/
-├── db/
-│   ├── schema.ts                   Single source of truth for all tables
-│   └── index.ts                    Drizzle client
+├── api/
+│   ├── client.ts                   apiGet/apiPost/apiPatch/apiDelete — ApiResponse unwrap
+│   └── response.ts                 apiSuccess · apiError · handleApiError
+├── env.ts                          Zod-validated env vars (server only, lazy)
+├── query/                          QueryClient setup (wired in app/layout.tsx)
 ├── supabase/
 │   ├── client.ts                   Browser client
 │   ├── server.ts                   Server client
 │   └── proxy.ts                    Middleware session refresh
-└── validations/
-    └── index.ts                    All Zod schemas
+└── utils.ts                        Pure utility functions (cn, formatTime, etc.)
 
-services/                           Business logic — called by API routes only
-hooks/                              Client-side React hooks
+services/                           Business logic + DB access (*.service.ts)
+validators/                         Zod schemas (*.validator.ts) — input source of truth
 types/
+├── api.ts                          ApiResponse<T> envelope
 └── db.ts                           Drizzle inferred types ($inferSelect)
+
+db/
+├── index.ts                        Drizzle client (postgres.js, pooler-safe, lazy)
+└── schema/
+    ├── index.ts                    Barrel: exports tables, enums, relations
+    ├── enums.ts                    pgEnum definitions
+    ├── users.ts                    users table
+    ├── runs.ts                     runs table
+    ├── queue-entries.ts            queueEntries table
+    ├── games.ts                    games table
+    ├── game-players.ts             gamePlayers table
+    ├── score-events.ts             scoreEvents table
+    └── relations.ts                ALL relations() declarations (avoids cross-table cycles)
 ```
 
 ---
@@ -93,47 +118,91 @@ types/
 ## Data Flow — One Direction Only
 
 ```
-UI (pages/components)
-  → fetch /api/...
-    → app/api/**/route.ts       validate with Zod, call service
-      → services/               business logic, no HTTP knowledge
-        → lib/db/               Drizzle queries only
+page / client component
+  │  TanStack Query hook (src/hooks/use-<thing>.ts)
+  ▼
+api wrapper (src/lib/api/client.ts)        ← single source of HTTP from the browser
+  │  ApiResponse<T> envelope
+  ▼
+route handler (src/app/api/**/route.ts)   ← thin: auth + Zod + delegate, responds with apiSuccess/apiError
+  │
+  ▼
+service (src/services/<thing>.service.ts) ← ALL business logic + DB access
+  │
+  ▼
+db (src/db, Drizzle) / Supabase
 ```
 
-**Never skip a layer.** UI never imports from `services/`. Services never import from `app/`. API routes never contain business logic — they validate and delegate.
+**Never skip a layer.** Every layer only talks to the layer below it.
 
-**Exception:** Server Components may read from Supabase directly for page data fetching. Writes always go through API routes.
+- **Client components NEVER import from `src/services`, `src/db`, or `src/lib/supabase/{client,proxy}`.** They reach the backend only through `src/hooks` → the api wrapper. No exceptions for app data.
+- **Server Components NEVER import from `src/services` or `src/db`.** They reach the backend only through `fetch('/api/...')` parsed as the `ApiResponse<T>` envelope. (There is no Server-Component shortcut. The auth bootstrap is the only Supabase-SDK-direct call, in `app/(auth)/actions.ts`.)
+- **Route handlers stay thin:** authenticate (`createClient()` from `src/lib/supabase/server` + `getUser()`), validate with Zod (`safeParse` — never `parse`), delegate to a service, respond with `apiSuccess` / `apiError` / `handleApiError` from `src/lib/api/response.ts`. No business logic, no DB queries, no direct Drizzle.
+- **Services own ALL business logic and DB access.** They never touch `Request` / `Response` / `cookies`. They take plain typed inputs (including the authenticated `userId`) and must scope every query to the authenticated user. Validation does not live here — services trust their inputs.
+- **Auth exception:** `src/app/(auth)/actions.ts` calls the Supabase SDK directly. It manages its own cookies and is the only place outside `lib/supabase/` allowed to do so. **App data never does this.**
 
 ---
 
 ## What Goes Where
 
-### API routes (`app/api/`)
-- Validate request body with Zod (`safeParse` — never `parse`)
-- Call a service function
-- Return `NextResponse.json()`
-- No DB queries directly in route handlers
+### API routes (`app/api/<things>/route.ts`)
+- Authenticate via `createClient()` from `src/lib/supabase/server` + `auth.getUser()`. Pass the resolved `userId` into the service.
+- Validate request body and query params with Zod — `safeParse` only, never `parse`.
+- Call a service function with the validated input plus `userId`.
+- Return `apiSuccess(data, status?)` on success or `apiError(code, message, status?)` / `handleApiError(err)` on failure.
+- Every route returns the `ApiResponse<T>` envelope defined in `src/types/api.ts`.
+- No DB queries, no Drizzle, no business logic in route handlers.
 
-### Services (`services/`)
-- All DB queries live here
-- No `NextRequest`, `NextResponse`, or any HTTP concept
-- No Zod — validation happens in API routes before services are called
-- Pure functions: take typed inputs, return typed outputs
+### Services (`src/services/<thing>.service.ts`)
+- All DB queries live here (Drizzle only — no raw SQL unless wrapped in a migration).
+- No `NextRequest`, `NextResponse`, `cookies()`, or any HTTP concept.
+- No Zod — validation happens in API routes before services are called. Services trust their inputs.
+- Throw typed errors (`GameNotFoundError`, `DuplicateScoreError`, `OngoingGameError`, `InvalidEntryIdsError`, `PlayerNotInGameError`, etc.) for cases the route should map to specific HTTP statuses. `handleApiError` does the mapping.
+- Pure functions: take typed inputs, return typed outputs. Scope every query to the authenticated `userId` passed in.
+- One file per resource: `run.service.ts`, `queue.service.ts`, `game.service.ts`, etc.
 
-### Lib (`lib/`)
-- `lib/db/schema.ts` — table definitions only, no queries
-- `lib/db/index.ts` — Drizzle client only
-- `lib/validations/` — Zod schemas only
-- `lib/utils.ts` — pure utility functions (cn, formatTime, etc.)
+### API client + response helpers (`src/lib/api/`)
+- `client.ts` exports `apiGet<T>` / `apiPost<T>` / `apiPatch<T>` / `apiDelete<T>`. Each calls `fetch`, unwraps the `ApiResponse<T>` envelope, and throws on `!ok` or `{ error }`. The `ApiResponse<T>` shape is the only wire contract between the route and the hook.
+- `response.ts` exports `apiSuccess(data, status?)`, `apiError(code, message, status?)`, and `handleApiError(err)`. `handleApiError` maps the service error classes above to status codes + error codes; it is the single place a route catches.
 
-### Types (`types/`)
-- `types/db.ts` — only `$inferSelect` and `$inferInsert` from Drizzle tables
-- No manually written interfaces that duplicate the schema
+### Validators (`src/validators/<thing>.validator.ts`)
+- Zod is the source of truth. Export the schema and the inferred type: `export type CreateRunInput = z.infer<typeof createRunSchema>`.
+- Enum values in Zod schemas must match the Drizzle enum values exactly.
+- One file per resource.
 
-### Hooks (`hooks/`)
-- Client-side only (`"use client"` context)
-- Supabase Realtime subscriptions live here
-- No direct DB access — hooks call API routes or subscribe via Realtime
+### Hooks (`src/hooks/use-<thing>.ts`)
+- Client-side only (`"use client"` context). Use TanStack Query (`useQuery` / `useMutation`) wrapping the api client from `src/lib/api/client.ts`.
+- Supabase Realtime subscriptions live here. `useEffect` cleanup must `removeChannel`.
+- Cache key convention: `["<entity>", code, ...entityId]`. `code` is the public run identifier used in URLs.
+- One file per resource. Multiple `useXxx` hooks in the same file are fine when they share types (e.g. `useRun` + `useRunMutation`).
+
+### Zustand stores (`src/stores/<thing>.store.ts`)
+- **UI-only state ONLY.** Never mirror API data into a store. The state may cross component trees, but it must not come from a route handler.
+- Draft / ephemeral state (team-assignment draft, undo toasts, drag previews) belongs here.
+
+### Server state vs client state
+- API data → TanStack Query (`src/hooks`). Invalidate on Realtime events; never set `useState` to hold a server payload.
+- UI-only state → Zustand (`src/stores`).
+- Auth context for the current session → `useSessionUser` hook (TanStack Query, `staleTime: Infinity`).
+
+### DB (`src/db/`)
+- `src/db/index.ts` — Drizzle client only. `prepare: false` for Supabase pgBouncer (transaction mode).
+- `src/db/schema/index.ts` — barrel re-exporting tables, enums, and relations.
+- `src/db/schema/enums.ts` — `pgEnum` definitions.
+- `src/db/schema/<table>.ts` — one file per table. **No `relations()` calls in table files.**
+- `src/db/schema/relations.ts` — all `relations()` declarations live here, importing from the table files. This avoids circular imports between table files that would otherwise arise when each table's `relations()` references its peers.
+- `lib/db/schema.ts` is the historical single-file home. It has been split — do not reintroduce it.
+
+### Types (`src/types/`)
+- `types/api.ts` — `ApiResponse<T>` envelope. Single source of truth for the wire shape.
+- `types/db.ts` — only `$inferSelect` and `$inferInsert` from Drizzle tables. No manually written interfaces that duplicate the schema.
+
+### Lib (`src/lib/`)
+- `lib/api/` — HTTP envelope (above).
+- `lib/env.ts` — Zod-validated env vars. Replaces `process.env.X!` non-null assertions. Lazy, server-only.
+- `lib/query/` — `QueryClient` setup. Imported by `app/layout.tsx`.
+- `lib/supabase/` — browser client, server client, middleware session refresh. Used by routes, middleware, and the auth actions.
+- `lib/utils.ts` — pure utility functions (`cn`, `formatTime`, `generateRunCode`, `deriveInitials`).
 
 ---
 
@@ -145,10 +214,11 @@ UI (pages/components)
 | Player | Guest (optional) | Join queue, view live score |
 | Spectator | Guest | Read-only |
 
-- Middleware (`lib/supabase/proxy.ts`) is the auth enforcement layer — redirects unauthenticated users away from `/create-run`, `/history`, `/account`
-- `(protected)/layout.tsx` is a pure passthrough — do not add auth checks here
-- RLS enforces authorization at the DB level — do not re-implement access checks in services
-- Guest mutations (join queue) go through API routes — RLS `WITH CHECK (true)` allows them
+- Middleware (`src/lib/supabase/proxy.ts`) is the auth enforcement layer — redirects unauthenticated users away from `/create-run`, `/history`, `/account`.
+- `(protected)/layout.tsx` is a pure passthrough — do not add auth checks here.
+- In API routes, authenticate with `createClient()` from `src/lib/supabase/server` + `auth.getUser()`. Pass the resolved `userId` to the service. The service scopes every query to that `userId` (or to a `runId` that the route has already resolved to be owned by `userId`).
+- RLS enforces authorization at the DB level as a second line — do not re-implement access checks in services, but do pass `userId` in so the service can scope its queries.
+- Guest mutations (join queue) go through API routes — RLS `WITH CHECK (true)` allows them.
 
 ---
 
@@ -167,7 +237,7 @@ These are non-negotiable — violations break the app silently.
 
 ## Migration Rules
 
-Drizzle Kit is **not used**. Migrations are JS files managed by `node-pg-migrate`, applied directly via `DIRECT_URL`.
+Drizzle Kit is **not used**. Migrations are JS files managed by `node-pg-migrate`, applied directly via `DIRECT_URL`. Migrations live at `db/migrations/` (project root) — they are **not** under `src/db/`. `src/db/` is the Drizzle source-of-truth only; `db/migrations/` is the actual schema-changes-applied history.
 
 ```bash
 # Any schema change (table, column, index, RLS, trigger):
@@ -182,11 +252,11 @@ npm run db:migrate:down
 
 **Naming:** `node-pg-migrate` prefixes files with a timestamp automatically — do not rename them.
 
-- **Never edit a migration file after it has been applied** — write a new one
-- `lib/db/schema.ts` is the Drizzle ORM definition — keep it in sync with migrations manually
-- RLS policies and triggers go in migration files using `pgm.sql()`
-- `supabase/migrations/` contains legacy SQL files (already applied) — do not touch them
-- Runner script: `tools/run-pg-migrate.mjs` — loads `DIRECT_URL` from `.env`
+- **Never edit a migration file after it has been applied** — write a new one.
+- `src/db/schema/<table>.ts` is the Drizzle ORM definition — keep it in sync with migrations manually.
+- RLS policies and triggers go in migration files using `pgm.sql()`.
+- `supabase/migrations/` contains legacy SQL files (already applied) — do not touch them.
+- Runner script: `tools/run-pg-migrate.mjs` — loads `DIRECT_URL` from `.env`.
 
 ---
 
@@ -194,25 +264,26 @@ npm run db:migrate:down
 
 ```ts
 // In API routes — always use safeParse, never parse
-const result = createRunSchema.safeParse(await req.json())
+const result = createRunSchema.safeParse(await req.json());
 if (!result.success) {
-  return NextResponse.json({ error: result.error.flatten() }, { status: 400 })
+  return apiError("VALIDATION", result.error.flatten().fieldErrors.toString(), 400);
 }
 // result.data is now typed and safe to pass to a service
 ```
 
-- All schemas live in `lib/validations/index.ts`
-- Export both the schema and the inferred type: `export type CreateRunInput = z.infer<typeof createRunSchema>`
-- Enum values in Zod schemas must match the Drizzle enum values exactly
+- One file per resource in `src/validators/<thing>.validator.ts`.
+- Export both the schema and the inferred type: `export type CreateRunInput = z.infer<typeof createRunSchema>`.
+- Enum values in Zod schemas must match the Drizzle enum values exactly.
+- Services do not import from `validators/` — they trust their inputs.
 
 ---
 
 ## Supabase Realtime
 
-- Realtime subscriptions belong in `hooks/` — never in Server Components or API routes
-- Subscribe to the `games` table for live score updates (the trigger keeps it in sync)
-- Subscribe to `queue_entries` for live queue updates
-- Always unsubscribe on component unmount — use the `useEffect` cleanup return
+- Realtime subscriptions belong in `src/hooks/` — never in Server Components or API routes.
+- Subscribe to the `games` table for live score updates (the trigger keeps it in sync).
+- Subscribe to `queue_entries` for live queue updates.
+- Always unsubscribe on component unmount — use the `useEffect` cleanup return to call `supabase.removeChannel`.
 
 ---
 
@@ -234,6 +305,8 @@ This applies to:
 
 Auth is enforced by middleware, not layouts. Do not add auth checks to layouts — this was the original cause of the `(protected)/layout.tsx` error.
 
+Note: Next.js 16 replaces `middleware.ts` with `proxy.ts`. The project is on Next 15 — the rename is deferred until the Next 16 upgrade.
+
 ---
 
 ## What NOT To Do
@@ -242,11 +315,16 @@ Auth is enforced by middleware, not layouts. Do not add auth checks to layouts �
 - Do not use `supabase db push` — migrations now go through `node-pg-migrate`
 - Do not write to `games.score_a` or `games.score_b` from app code
 - Do not hard-delete queue entries — set `status = 'removed'`
-- Do not query `lib/db/` from inside `app/` pages or components
-- Do not put business logic in API route handlers — put it in `services/`
+- Do not import from `src/services`, `src/db`, or `src/lib/supabase/{client,proxy}` in `app/` pages or components — go through `src/hooks` → `src/lib/api/client.ts`
+- Do not put business logic in API route handlers — put it in `src/services/<thing>.service.ts`
+- Do not import Drizzle, run queries, or touch `src/db` from a route handler — delegate to a service
+- Do not put `relations()` declarations in `src/db/schema/<table>.ts` — they live in `src/db/schema/relations.ts` to avoid cross-table circular imports
 - Do not use `z.parse()` in API routes — always `z.safeParse()`
 - Do not add Zod validation inside services — services trust their inputs
+- Do not return `NextResponse.json(...)` from a route — use `apiSuccess` / `apiError` / `handleApiError`
+- Do not call `fetch('/api/...')` directly from a component — use the hook, which uses the api wrapper
+- Do not mirror API data into a Zustand store — use TanStack Query
 - Do not use `ORDER BY joined_at` for queue ordering — the integer `position` column is the order
 - Do not rotate the queue from app code — the game-completion trigger owns `queue_entries.position`
-- Do not create new files unless the task requires it
 - Do not add comments explaining what code does — only add comments explaining why when the reason is non-obvious
+- Do not create new files unless the task requires it (a restructuring task is the one exception)
