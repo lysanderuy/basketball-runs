@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Providers } from "@/lib/query/query-client";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -18,7 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
