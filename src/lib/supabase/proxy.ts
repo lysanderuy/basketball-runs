@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { hasEnvVars } from "../utils";
+import { env } from "@/lib/env";
 
 const PROTECTED_ROUTES = ["/create-run", "/history", "/account"];
-const AUTH_ROUTES = ["/auth/login", "/auth/signup"];
+const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,17 +15,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  if (!hasEnvVars) {
-    return NextResponse.next({ request });
-  }
-
   let supabaseResponse = NextResponse.next({ request });
 
-  // Do not run code between createServerClient and getClaims().
+  // Do not run code between createServerClient and getUser().
   // A simple mistake could make it very hard to debug random logouts.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
       cookies: {
         getAll() {
@@ -44,12 +40,13 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
+    url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
