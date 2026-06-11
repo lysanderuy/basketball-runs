@@ -3,11 +3,16 @@
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export function useQueueRealtime(runId: string | null, refetch: () => void) {
-  const refetchRef = useRef(refetch);
+// Note: this hook and useGameRealtime both subscribe to tables scoped to the
+// same run/game. Today only one is mounted at a time (queue/game/feed are
+// different routes), but mounting both on the same page will create duplicate
+// channels. Don't co-locate.
+
+export function useQueueRealtime(runId: string | null, onInvalidate: () => void) {
+  const onInvalidateRef = useRef(onInvalidate);
   useEffect(() => {
-    refetchRef.current = refetch;
-  }, [refetch]);
+    onInvalidateRef.current = onInvalidate;
+  }, [onInvalidate]);
 
   useEffect(() => {
     if (!runId) return;
@@ -17,7 +22,7 @@ export function useQueueRealtime(runId: string | null, refetch: () => void) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "queue_entries", filter: `run_id=eq.${runId}` },
-        () => refetchRef.current(),
+        () => onInvalidateRef.current(),
       )
       .subscribe((status) => {
         if (status !== "SUBSCRIBED" && status !== "CLOSED") {
