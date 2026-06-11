@@ -1,29 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
-import { createClient } from "@/lib/supabase/client";
+import { useFeedRealtime } from "@/hooks/use-feed-realtime";
 import { formatTime } from "@/lib/utils";
-import type { Run } from "@/types/db";
-
-type GameData = {
-  id: string;
-  gameNumber: number;
-  status: "pending" | "active" | "completed";
-  scoreGoal: number;
-  scoreA: number;
-  scoreB: number;
-  winner: "team_a" | "team_b" | "tie" | null;
-  timeLimitSeconds: number | null;
-  clockStartedAt: string | null;
-  clockPausedAt: string | null;
-  totalPausedSeconds: number;
-  startedAt: string | null;
-  endedAt: string | null;
-};
+import { useGames, type GameData } from "@/hooks/use-game";
+import { useRun } from "@/hooks/use-run";
+import { useSessionUser } from "@/hooks/use-session";
 
 function getRemainingTime(game: GameData): number {
   if (!game.clockStartedAt || game.timeLimitSeconds === null) return 0;
@@ -50,117 +36,28 @@ export default function FeedPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
 
-  const [run, setRun] = useState<Run | null>(null);
-  const [games, setGames] = useState<GameData[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const runQuery = useRun(code);
+  const gamesQuery = useGames(code);
+  const sessionQuery = useSessionUser();
+
+  const run = runQuery.data ?? null;
+  const games = gamesQuery.data ?? [];
+  const userId = sessionQuery.data ?? null;
+  const loading = runQuery.isPending || gamesQuery.isPending || sessionQuery.isPending;
+
   const [lastScorer, setLastScorer] = useState<string | null>(null);
-
-  const supabaseRef = useRef(createClient());
-  const lastScorerGenRef = useRef(0);
-
-  const loadGames = useCallback(async () => {
-    const res = await fetch(`/api/runs/${code}/games`);
-    if (res.ok) setGames(await res.json());
-  }, [code]);
-
-  useEffect(() => {
-    const supabase = supabaseRef.current;
-    async function load() {
-      const [{ data: { session } }, runRes] = await Promise.all([
-        supabase.auth.getSession(),
-        fetch(`/api/runs/${code}`),
-      ]);
-      setUserId(session?.user?.id ?? null);
-      if (runRes.ok) setRun(await runRes.json());
-      await loadGames();
-      setLoading(false);
-    }
-    load();
-  }, [code, loadGames]);
-
-  // Live updates for games in this run
-  useEffect(() => {
-    if (!run) return;
-    const supabase = supabaseRef.current;
-    const channel = supabase
-      .channel(`feed-${run.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "games", filter: `run_id=eq.${run.id}` },
-        () => loadGames(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "games", filter: `run_id=eq.${run.id}` },
-        (payload) => {
-          // Apply payload directly — avoids concurrent-fetch race condition where
-          // a slower older fetch resolves after a newer one and overwrites state.
-          const r = payload.new as Record<string, unknown>;
-          setGames((prev) =>
-            prev.map((g) =>
-              g.id === r.id
-                ? {
-                    ...g,
-                    status: r.status as GameData["status"],
-                    scoreA: r.score_a as number,
-                    scoreB: r.score_b as number,
-                    winner: r.winner as GameData["winner"],
-                    timeLimitSeconds: r.time_limit_seconds as number | null,
-                    clockStartedAt: r.clock_started_at as string | null,
-                    clockPausedAt: r.clock_paused_at as string | null,
-                    totalPausedSeconds: r.total_paused_seconds as number,
-                    startedAt: r.started_at as string | null,
-                    endedAt: r.ended_at as string | null,
-                  }
-                : g,
-            ),
-          );
-        },
-      )
-      .subscribe((status) => {
-        if (status !== "SUBSCRIBED" && status !== "CLOSED") {
-          console.error(`Realtime channel feed-${run.id} failed:`, status);
-        }
-      });
-    return () => { supabase.removeChannel(channel); };
-  }, [run, loadGames]);
 
   const isHost = !!userId && !!run && userId === run.hostId;
   const activeGame = games.find((g) => g.status === "active" || g.status === "pending") ?? null;
   const completedGames = games.filter((g) => g.status === "completed");
 
-  // Score updates + last scorer for the active game
+  const runId = run?.id ?? null;
+  useFeedRealtime(runId, code, activeGame?.id ?? null, setLastScorer);
+
+  // Clear last scorer when active game changes or disappears.
   useEffect(() => {
-    const gameId = activeGame?.id;
-    if (!gameId) return;
-    const supabase = supabaseRef.current;
-    const channel = supabase
-      .channel(`feed-scores-${gameId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "score_events", filter: `game_id=eq.${gameId}` },
-        async () => {
-          const gen = ++lastScorerGenRef.current;
-          const res = await fetch(`/api/runs/${code}/games/${gameId}`);
-          if (res.ok) {
-            const details = await res.json();
-            if (lastScorerGenRef.current !== gen) return; // stale response
-            const last = details.recentEvents?.[0];
-            if (last) setLastScorer(last.displayName);
-          }
-        },
-      )
-      .subscribe((status) => {
-        if (status !== "SUBSCRIBED" && status !== "CLOSED") {
-          console.error(`Realtime channel feed-scores-${gameId} failed:`, status);
-        }
-      });
-    return () => {
-      supabase.removeChannel(channel);
-      setLastScorer(null);
-    };
-  }, [activeGame?.id, code]);
+    return () => setLastScorer(null);
+  }, [activeGame?.id]);
 
   return (
     <>

@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getRunByCode } from "@/services/runs";
-import JoinForm from "./JoinForm";
+import { JoinPageClient } from "./JoinForm";
+
+export const dynamic = "force-dynamic";
 
 export default async function JoinPage({
   params,
@@ -9,25 +9,16 @@ export default async function JoinPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  const run = await getRunByCode(code);
-
-  if (!run) notFound();
 
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims as
-    | { sub?: string; user_metadata?: { displayName?: string } }
-    | null
-    | undefined;
-
-  const userId = claims?.sub ?? null;
-  const displayName = claims?.user_metadata?.displayName ?? null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
-    <JoinForm
+    <JoinPageClient
       runCode={code}
-      runName={run.name}
-      currentUser={userId ? { id: userId, displayName } : null}
+      currentUser={user ? { id: user.id, displayName: (user.user_metadata?.displayName as string | undefined) ?? null } : null}
     />
   );
 }

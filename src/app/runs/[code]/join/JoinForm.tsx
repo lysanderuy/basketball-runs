@@ -4,10 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAddQueueEntryMutation } from "@/hooks/use-queue";
+import { useRun } from "@/hooks/use-run";
+import { ApiError } from "@/lib/api/client";
 
 interface Props {
   runCode: string;
-  runName: string;
   currentUser: { id: string; displayName: string | null } | null;
 }
 
@@ -26,11 +28,53 @@ function ordinal(n: number) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-export default function JoinForm({ runCode, runName, currentUser }: Props) {
+export function JoinPageClient({ runCode, currentUser }: Props) {
+  const { data: run, isPending, isError } = useRun(runCode);
+
+  if (isError) {
+    return (
+      <div className="app-shell px-5">
+        <div className="pt-10 flex flex-col items-center justify-center text-center gap-3">
+          <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
+            Run not found
+          </span>
+          <span className="font-body text-[13px] text-text-muted">
+            Check the code and try again.
+          </span>
+          <Link
+            href="/"
+            className="mt-4 font-display text-[13px] font-bold tracking-[0.08em] uppercase text-accent underline underline-offset-2"
+          >
+            Back to home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPending || !run) {
+    return (
+      <div className="app-shell px-5">
+        <div className="pt-10 h-12 w-40 bg-bg-surface rounded-md animate-pulse" />
+      </div>
+    );
+  }
+
+  return <JoinForm runCode={runCode} runName={run.name} currentUser={currentUser} />;
+}
+
+interface JoinFormProps {
+  runCode: string;
+  runName: string;
+  currentUser: { id: string; displayName: string | null } | null;
+}
+
+export default function JoinForm({ runCode, runName, currentUser }: JoinFormProps) {
+
   const [name, setName] = useState(currentUser?.displayName ?? "");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [joined, setJoined] = useState<{ displayName: string; position: number } | null>(null);
+  const addEntry = useAddQueueEntryMutation(runCode);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,30 +84,12 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
       return;
     }
     setError("");
-    setIsSubmitting(true);
 
     try {
-      const res = await fetch(`/api/runs/${runCode}/queue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: trimmed }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json();
-        const msg =
-          body.error?.formErrors?.[0] ??
-          (typeof body.error === "string" ? body.error : "Failed to join. Try again.");
-        setError(msg);
-        return;
-      }
-
-      const data = await res.json();
+      const data = await addEntry.mutateAsync(trimmed);
       setJoined({ displayName: trimmed, position: data.position });
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
   }
 
@@ -215,9 +241,9 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
             size="lg"
             className="w-full animate-fade-up"
             style={{ animationDelay: "0.16s" }}
-            disabled={isSubmitting}
+            disabled={addEntry.isPending}
           >
-            {isSubmitting ? "Joining…" : "Join Queue"}
+            {addEntry.isPending ? "Joining…" : "Join Queue"}
           </Button>
 
           {!currentUser && (
@@ -227,7 +253,7 @@ export default function JoinForm({ runCode, runName, currentUser }: Props) {
             >
               Already have an account?{" "}
               <Link
-                href={`/auth/login?next=/runs/${runCode}/join`}
+                href={`/login?next=/runs/${runCode}/join`}
                 className="font-semibold text-text-secondary underline underline-offset-2 decoration-border hover:text-text-primary transition-colors"
               >
                 Sign in

@@ -1,24 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { Ban, MoreVertical, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SessionTopbar } from "@/components/ui/session-topbar";
-import { createClient } from "@/lib/supabase/client";
-import { useQueueRealtime } from "@/hooks/useQueueRealtime";
-import type { Run } from "@/types/db";
-
-type QueueEntry = {
-  id: string;
-  displayName: string;
-  status: "waiting" | "marked_out" | "removed";
-  gamesPlayed: number;
-};
-
-type QueueData = {
-  onCourt: QueueEntry[];
-  waiting: QueueEntry[];
-};
+import { useQueueRealtime } from "@/hooks/use-queue-realtime";
+import {
+  useAddQueueEntryMutation,
+  useQueue,
+  useUpdateQueueStatusMutation,
+  type QueueData,
+  type QueueEntry,
+} from "@/hooks/use-queue";
+import { useRun } from "@/hooks/use-run";
+import { useSessionUser } from "@/hooks/use-session";
 
 type CtxMenu = {
   entryId: string;
@@ -27,39 +23,37 @@ type CtxMenu = {
   right: number;
 };
 
+const EMPTY_QUEUE: QueueData = { onCourt: [], waiting: [] };
+
 export default function QueuePage() {
   const { code } = useParams<{ code: string }>();
+  const queryClient = useQueryClient();
 
-  const [run, setRun] = useState<Run | null>(null);
-  const [queue, setQueue] = useState<QueueData>({ onCourt: [], waiting: [] });
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const runQuery = useRun(code);
+  const queueQuery = useQueue(code);
+  const sessionQuery = useSessionUser();
+
+  const run = runQuery.data ?? null;
+  const queue = queueQuery.data ?? EMPTY_QUEUE;
+  const userId = sessionQuery.data ?? null;
+  const loading = runQuery.isPending || queueQuery.isPending || sessionQuery.isPending;
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [addName, setAddName] = useState("");
   const [addError, setAddError] = useState("");
-  const [adding, setAdding] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [mutating, setMutating] = useState<Set<string>>(new Set());
 
-  const supabaseRef = useRef(createClient());
+  const invalidateQueue = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["queue", code] });
+  }, [queryClient, code]);
 
-  const load = useCallback(async () => {
-    const [{ data: { session } }, runRes, queueRes] = await Promise.all([
-      supabaseRef.current.auth.getSession(),
-      fetch(`/api/runs/${code}`),
-      fetch(`/api/runs/${code}/queue`),
-    ]);
-    setUserId(session?.user?.id ?? null);
-    if (runRes.ok) setRun(await runRes.json());
-    if (queueRes.ok) setQueue(await queueRes.json());
-    setLoading(false);
-  }, [code]);
+  useQueueRealtime(run?.id ?? null, invalidateQueue);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const statusMutation = useUpdateQueueStatusMutation(code);
+  const addPlayerMutation = useAddQueueEntryMutation(code);
 
-  useQueueRealtime(run?.id ?? null, load);
+  const adding = addPlayerMutation.isPending;
 
   const isHost = !!userId && !!run && userId === run.hostId;
 
@@ -69,37 +63,31 @@ export default function QueuePage() {
 
   async function handleStatusUpdate(entryId: string, status: "waiting" | "marked_out" | "removed") {
     setMutating((prev) => new Set(prev).add(entryId));
-    await fetch(`/api/runs/${code}/queue/${entryId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    setMutating((prev) => {
-      const next = new Set(prev);
-      next.delete(entryId);
-      return next;
-    });
-    load();
+    try {
+      await statusMutation.mutateAsync({ entryId, status });
+    } catch {
+      // Realtime + invalidation will resync
+    } finally {
+      setMutating((prev) => {
+        const next = new Set(prev);
+        next.delete(entryId);
+        return next;
+      });
+    }
   }
 
   async function handleAddPlayer() {
     const name = addName.trim();
     if (!name || adding) return;
-    setAdding(true);
     setAddError("");
-    const res = await fetch(`/api/runs/${code}/queue`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ displayName: name }),
-    });
-    setAdding(false);
-    if (!res.ok) {
+    try {
+      await addPlayerMutation.mutateAsync(name);
+    } catch {
       setAddError("Failed to add player. Try again.");
       return;
     }
     setAddName("");
     setShowAddForm(false);
-    load();
   }
 
   function openCtxMenu(e: React.MouseEvent<HTMLButtonElement>, entry: QueueEntry) {

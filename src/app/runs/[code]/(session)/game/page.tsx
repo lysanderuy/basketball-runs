@@ -5,63 +5,26 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
-import { createClient } from "@/lib/supabase/client";
+import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { formatTime } from "@/lib/utils";
+import {
+  useClockMutation,
+  useEndGameMutation,
+  useGameDetails,
+  useGames,
+  useScoreMutation,
+  useUndoScoreMutation,
+  type GameData,
+  type PlayerData,
+} from "@/hooks/use-game";
+import { useRun } from "@/hooks/use-run";
+import { useSessionUser } from "@/hooks/use-session";
 
 function scoreValuesFor(pointSystem: "one_two" | "two_three"): readonly number[] {
   return pointSystem === "one_two" ? [1, 2] : [2, 3];
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type RunData = {
-  id: string;
-  hostId: string;
-  name: string;
-  location: string | null;
-  sessionCode: string;
-  scoreGoal: number;
-  pointSystem: "one_two" | "two_three";
-  timeLimitSeconds: number | null;
-};
-
-type GameData = {
-  id: string;
-  gameNumber: number;
-  status: "pending" | "active" | "completed";
-  scoreGoal: number;
-  timeLimitSeconds: number | null;
-  scoreA: number;
-  scoreB: number;
-  winner: "team_a" | "team_b" | "tie" | null;
-  clockStartedAt: string | null;
-  clockPausedAt: string | null;
-  totalPausedSeconds: number;
-  startedAt: string | null;
-  endedAt: string | null;
-};
-
-type PlayerData = {
-  queueEntryId: string;
-  displayName: string;
-  team: "team_a" | "team_b";
-  points: number;
-};
-
-type EventData = {
-  id: string;
-  queueEntryId: string;
-  displayName: string;
-  team: "team_a" | "team_b";
-  points: number;
-  createdAt: string;
-};
-
-type GameDetails = {
-  game: GameData;
-  players: PlayerData[];
-  recentEvents: EventData[];
-};
 
 type PendingScore = {
   points: number;
@@ -95,88 +58,55 @@ function isClockRunning(game: GameData): boolean {
 export default function GamePage() {
   const { code } = useParams<{ code: string }>();
 
-  const [run, setRun] = useState<RunData | null>(null);
-  const [details, setDetails] = useState<GameDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const runQuery = useRun(code);
+  const gamesQuery = useGames(code);
+  const sessionQuery = useSessionUser();
+
+  const run = runQuery.data ?? null;
+  const userId = sessionQuery.data ?? null;
+
+  const games = gamesQuery.data;
+  const currentGameId = useMemo(() => {
+    if (!games) return null;
+    const current =
+      games.find((g) => g.status === "active") ??
+      games.find((g) => g.status === "pending") ??
+      games[0] ??
+      null;
+    return current?.id ?? null;
+  }, [games]);
+
+  const detailsQuery = useGameDetails(code, currentGameId);
+  const details = detailsQuery.data ?? null;
+
+  const loading =
+    runQuery.isPending ||
+    gamesQuery.isPending ||
+    sessionQuery.isPending ||
+    (!!currentGameId && detailsQuery.isPending);
+
   const [clockDisplay, setClockDisplay] = useState(0);
   const [pendingScore, setPendingScore] = useState<PendingScore | null>(null);
   const [scoringId, setScoringId] = useState<string | null>(null);
   const [scoredTeam, setScoredTeam] = useState<"a" | "b" | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
 
-  const supabaseRef = useRef(createClient());
-  const gameIdRef = useRef<string | null>(null);
   const autoEndCalledRef = useRef(false);
 
-  // ─── Load ──────────────────────────────────────────────────────────────────
+  // ─── Mutations ──────────────────────────────────────────────────────────────
 
-  const loadGame = useCallback(
-    async (gameId: string) => {
-      const res = await fetch(`/api/runs/${code}/games/${gameId}`);
-      if (res.ok) {
-        const data: GameDetails = await res.json();
-        setDetails(data);
-      }
-    },
-    [code],
-  );
+  const scoreMutation = useScoreMutation(code, currentGameId ?? "");
+  const undoMutation = useUndoScoreMutation(code, currentGameId ?? "");
+  const clockMutation = useClockMutation(code, currentGameId ?? "");
+  const endGameMutation = useEndGameMutation(code, currentGameId ?? "");
 
-  const load = useCallback(async () => {
-    const [{ data: { session } }, runRes, gamesRes] = await Promise.all([
-      supabaseRef.current.auth.getSession(),
-      fetch(`/api/runs/${code}`),
-      fetch(`/api/runs/${code}/games`),
-    ]);
-
-    setUserId(session?.user?.id ?? null);
-
-    if (runRes.ok) setRun(await runRes.json());
-
-    if (gamesRes.ok) {
-      const games: GameData[] = await gamesRes.json();
-      const current =
-        games.find((g) => g.status === "active") ??
-        games.find((g) => g.status === "pending") ??
-        games[0] ??
-        null;
-
-      if (current) {
-        gameIdRef.current = current.id;
-        await loadGame(current.id);
-      }
-    }
-
-    setLoading(false);
-  }, [code, loadGame]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const submitting = scoreMutation.isPending || undoMutation.isPending;
+  // When adding a new mutation that should block the score/undo buttons, extend this
+  // derivation. Buttons below gate on `submitting`; a missed entry enables them mid-flight.
 
   // ─── Realtime ──────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (!gameIdRef.current) return;
-    const gameId = gameIdRef.current;
-    const supabase = supabaseRef.current;
-    const channel = supabase
-      .channel(`game-${gameId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "games", filter: `id=eq.${gameId}` },
-        () => loadGame(gameId),
-      )
-      .subscribe((status) => {
-        if (status !== "SUBSCRIBED" && status !== "CLOSED") {
-          console.error(`Realtime channel game-${gameId} failed:`, status);
-        }
-      });
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [details?.game.id, loadGame]); // re-subscribe if game changes
+  useGameRealtime(code, currentGameId);
 
   // Reset auto-end flag when a new game starts
   useEffect(() => {
@@ -213,135 +143,38 @@ export default function GamePage() {
 
     const points = pendingScore.points;
     setPendingScore(null);
-
-    setSubmitting(true);
     setScoringId(queueEntryId);
     setScoredTeam(team === "team_a" ? "a" : "b");
 
-    // Optimistic update
-    setDetails((prev) => {
-      if (!prev) return prev;
-      const newScoreA = prev.game.scoreA + (team === "team_a" ? points : 0);
-      const newScoreB = prev.game.scoreB + (team === "team_b" ? points : 0);
-      const scorer = prev.players.find((p) => p.queueEntryId === queueEntryId);
-      const optimisticEvent: EventData = {
-        id: `optimistic-${Date.now()}`,
-        queueEntryId,
-        displayName: scorer?.displayName ?? "",
-        team,
-        points,
-        createdAt: new Date().toISOString(),
-      };
-      return {
-        ...prev,
-        game: {
-          ...prev.game,
-          scoreA: newScoreA,
-          scoreB: newScoreB,
-          status: prev.game.status === "pending" ? "active" : prev.game.status,
-        },
-        players: prev.players.map((p) =>
-          p.queueEntryId === queueEntryId ? { ...p, points: p.points + points } : p,
-        ),
-        recentEvents: [optimisticEvent, ...prev.recentEvents].slice(0, 10),
-      };
-    });
+    scoreMutation.mutate({ queueEntryId, team, points });
 
     setTimeout(() => {
       setScoringId(null);
       setScoredTeam(null);
     }, 500);
-
-    try {
-      const res = await fetch(`/api/runs/${code}/games/${details.game.id}/score`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queueEntryId, team, points }),
-      });
-      if (!res.ok) await loadGame(details.game.id);
-    } catch {
-      await loadGame(details.game.id);
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   async function undo() {
     if (submitting || !details || details.recentEvents.length === 0) return;
     if (details.game.status === "completed") return;
 
-    const last = details.recentEvents[0];
     setPendingScore(null);
-    setSubmitting(true);
-
-    // Optimistic update
-    setDetails((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        game: {
-          ...prev.game,
-          scoreA: Math.max(0, prev.game.scoreA - (last.team === "team_a" ? last.points : 0)),
-          scoreB: Math.max(0, prev.game.scoreB - (last.team === "team_b" ? last.points : 0)),
-        },
-        players: prev.players.map((p) =>
-          p.queueEntryId === last.queueEntryId
-            ? { ...p, points: Math.max(0, p.points - last.points) }
-            : p,
-        ),
-        recentEvents: prev.recentEvents.slice(1),
-      };
-    });
-
-    try {
-      const res = await fetch(`/api/runs/${code}/games/${details.game.id}/score`, {
-        method: "PATCH",
-      });
-      if (!res.ok) await loadGame(details.game.id);
-    } catch {
-      await loadGame(details.game.id);
-    } finally {
-      setSubmitting(false);
-    }
+    undoMutation.mutate();
   }
 
   async function toggleClock() {
     if (!details) return;
     const { game } = details;
     const action = !game.clockStartedAt ? "start" : game.clockPausedAt ? "resume" : "pause";
-
-    try {
-      const res = await fetch(`/api/runs/${code}/games/${game.id}/clock`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setDetails((prev) => (prev ? { ...prev, game: updated } : prev));
-      }
-    } catch {
-      // silent — Realtime will sync
-    }
+    clockMutation.mutate(action);
   }
 
-  const handleEndGame = useCallback(async () => {
+  const handleEndGame = useCallback(() => {
     if (!details) return;
     setShowEndConfirm(false);
     setPendingScore(null);
-
-    try {
-      const res = await fetch(`/api/runs/${code}/games/${details.game.id}`, {
-        method: "PATCH",
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setDetails((prev) => (prev ? { ...prev, game: updated } : prev));
-      }
-    } catch {
-      // Realtime will sync
-    }
-  }, [code, details]);
+    endGameMutation.mutate();
+  }, [details, endGameMutation]);
 
   // ─── Derived ───────────────────────────────────────────────────────────────
 

@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { Suspense, useState } from "react";
+import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { signUp } from "@/app/auth/actions";
+import { signIn } from "@/app/(auth)/actions";
 
 function GoogleIcon() {
   return (
@@ -18,9 +20,11 @@ function GoogleIcon() {
   );
 }
 
-export default function SignupPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/";
   const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string } | null, formData: FormData) => signUp(_prev, formData),
+    async (_prev: { error: string } | null, formData: FormData) => signIn(_prev, formData),
     null,
   );
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +33,7 @@ export default function SignupPage() {
     <div className="app-shell px-5 overflow-y-auto">
       <div className="pt-4 flex items-center">
         <Link
-          href="/auth/login"
+          href="/"
           className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-all hover:border-accent-dim hover:text-accent hover:bg-accent-glow"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -51,10 +55,10 @@ export default function SignupPage() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1 animate-fade-up">
             <h2 className="font-display text-[20px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
-              Create Account
+              Sign In
             </h2>
             <p className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
-              Get in the queue.
+              Back on the court.
             </p>
           </div>
 
@@ -65,7 +69,7 @@ export default function SignupPage() {
           >
             <GoogleIcon />
             <span className="font-display text-[14px] font-bold tracking-[0.08em] uppercase text-text-secondary">
-              Sign up with Google
+              Sign in with Google
             </span>
           </button>
 
@@ -81,29 +85,9 @@ export default function SignupPage() {
           </div>
 
           <form action={formAction} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.14s" }}>
-              <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
-                Display Name
-              </label>
-              <input
-                name="displayName"
-                type="text"
-                autoComplete="nickname"
-                required
-                maxLength={32}
-                className={cn(
-                  "w-full h-13 bg-bg-surface border border-border rounded-md",
-                  "px-3.5",
-                  "font-display text-[18px] font-bold tracking-[0.06em] uppercase text-text-primary",
-                  "outline-none transition-all duration-150",
-                  "placeholder:text-text-muted placeholder:font-bold",
-                  "focus:border-border-accent focus:bg-bg-hover"
-                )}
-                placeholder=""
-              />
-            </div>
+            <input type="hidden" name="next" value={next} />
 
-            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.18s" }}>
+            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.14s" }}>
               <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Email
               </label>
@@ -124,7 +108,7 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.22s" }}>
+            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.18s" }}>
               <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Password
               </label>
@@ -132,9 +116,8 @@ export default function SignupPage() {
                 <input
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
+                  autoComplete="current-password"
                   required
-                  minLength={8}
                   className={cn(
                     "w-full h-13 bg-bg-surface border border-border rounded-md",
                     "px-3.5 pr-11",
@@ -167,29 +150,37 @@ export default function SignupPage() {
               variant="primary"
               size="lg"
               className="w-full h-14 mt-4 animate-fade-up"
-              style={{ animationDelay: "0.26s" }}
+              style={{ animationDelay: "0.22s" }}
               disabled={isPending}
             >
-              {isPending ? "Creating account…" : "Create Account"}
+              {isPending ? "Signing in…" : "Sign In"}
             </Button>
           </form>
 
           <div
             className="flex items-center justify-center gap-1.5 pt-1 animate-fade-up"
-            style={{ animationDelay: "0.3s" }}
+            style={{ animationDelay: "0.26s" }}
           >
             <span className="font-body text-[13px] text-text-muted">
-              Already have an account?
+              Don&apos;t have an account?
             </span>
             <Link
-              href="/auth/login"
+              href="/signup"
               className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
             >
-              Sign in
+              Sign up
             </Link>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="app-shell" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

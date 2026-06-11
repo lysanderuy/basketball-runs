@@ -4,30 +4,56 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { cn } from "@/lib/utils";
-import { signOut } from "@/app/auth/actions";
+import { cn, deriveInitials } from "@/lib/utils";
+import { useRuns, useCloseRunMutation, type RunSummary } from "@/hooks/use-run";
+import { signOut } from "@/app/(auth)/actions";
 import { Plus, ChevronRight, LogOut, User } from "lucide-react";
 
-type RunSummary = {
+type InitialUser = {
   id: string;
-  name: string;
-  location: string | null;
-  status: "lobby" | "active" | "completed";
-  sessionCode: string;
-  gameCount: number;
+  email: string;
+  metadata: Record<string, unknown> | undefined;
+} | null;
+
+export type HomeClientProps = {
+  initialUser: InitialUser;
 };
 
-export type HomeAuthState =
-  | { status: "signed-out" }
-  | { status: "signed-in"; initials: string; email: string; runs: RunSummary[] };
+type HomeRun = Pick<RunSummary, "id" | "name" | "location" | "status" | "sessionCode" | "gameCount">;
 
-export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState }) {
+function mapRuns(runs: RunSummary[]): HomeRun[] {
+  return runs.map((r) => ({
+    id: r.id,
+    name: r.name,
+    location: r.location,
+    status: r.status,
+    sessionCode: r.sessionCode,
+    gameCount: r.gameCount,
+  }));
+}
+
+export default function HomeClient({ initialUser }: HomeClientProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const auth = initialAuth;
   const [showConflictModal, setShowConflictModal] = useState(false);
-  const [closingRun, setClosingRun] = useState(false);
+
+  const signedIn = initialUser !== null;
+  const { data: runs = [] } = useRuns(signedIn);
+
+  const initials = signedIn ? deriveInitials(initialUser.metadata, initialUser.email) : "";
+  const email = signedIn ? initialUser.email : "";
+  const visibleRuns: HomeRun[] = signedIn ? mapRuns(runs) : [];
+
+  const activeRun = signedIn
+    ? (visibleRuns.find((r) => r.status === "active" || r.status === "lobby") ?? null)
+    : null;
+
+  const completedCount = signedIn
+    ? visibleRuns.filter((r) => r.status === "completed").length
+    : 0;
+
+  const closeRun = useCloseRunMutation(activeRun?.sessionCode ?? "");
 
   const stripped = code.replace("-", "");
   const codeReady = stripped.length >= 6;
@@ -66,31 +92,14 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
 
   async function handleCloseAndStart() {
     if (!activeRun) return;
-    setClosingRun(true);
     try {
-      const res = await fetch(`/api/runs/${activeRun.sessionCode}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" }),
-      });
-      if (res.ok) {
-        setShowConflictModal(false);
-        router.push("/create-run");
-      }
-    } finally {
-      setClosingRun(false);
+      await closeRun.mutateAsync();
+      setShowConflictModal(false);
+      router.push("/create-run");
+    } catch {
+      // Keep the modal open so the host can retry.
     }
   }
-
-  const activeRun =
-    auth.status === "signed-in"
-      ? (auth.runs.find((r) => r.status === "active" || r.status === "lobby") ?? null)
-      : null;
-
-  const completedCount =
-    auth.status === "signed-in"
-      ? auth.runs.filter((r) => r.status === "completed").length
-      : 0;
 
   return (
     <div className="app-shell px-5">
@@ -103,11 +112,11 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
             <br />
             Runs
           </h1>
-          {auth.status === "signed-in" && (
+          {signedIn && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button className="mt-1 w-[38px] h-[38px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[13px] font-extrabold tracking-[0.04em] text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors hover:bg-bg-surface">
-                  {auth.initials}
+                  {initials}
                 </button>
               </DropdownMenu.Trigger>
 
@@ -119,10 +128,10 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
                 >
                   <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border">
                     <div className="w-[30px] h-[30px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[11px] font-extrabold tracking-[0.04em] text-accent">
-                      {auth.initials}
+                      {initials}
                     </div>
                     <span className="font-body text-[12px] font-medium text-text-muted truncate">
-                      {auth.email}
+                      {email}
                     </span>
                   </div>
 
@@ -162,7 +171,7 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
       <div className="flex-1 flex flex-col justify-end pb-12">
         <div className="flex flex-col gap-5">
 
-          {auth.status === "signed-in" && (
+          {signedIn && (
             <div
               className="flex flex-col gap-2 mb-12 animate-fade-up"
               style={{ animationDelay: "0.1s" }}
@@ -199,7 +208,7 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
                 </button>
               )}
 
-              {auth.runs.length > 0 && (
+              {visibleRuns.length > 0 && (
                 <button
                   onClick={() => router.push("/history")}
                   className="w-full flex items-center justify-between px-[18px] py-3 rounded-md border border-border bg-bg-surface hover:bg-bg-hover transition-colors text-left"
@@ -289,7 +298,7 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
             Start a Run
           </button>
 
-          {auth.status === "signed-out" && (
+          {!signedIn && (
             <div
               className="flex items-center justify-center gap-1.5 animate-fade-up"
               style={{ animationDelay: "0.24s" }}
@@ -298,7 +307,7 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
                 Already have an account?
               </span>
               <Link
-                href="/auth/login"
+                href="/login"
                 className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
               >
                 Sign in
@@ -348,10 +357,10 @@ export default function HomeClient({ initialAuth }: { initialAuth: HomeAuthState
                 <button
                   type="button"
                   onClick={handleCloseAndStart}
-                  disabled={closingRun}
+                  disabled={closeRun.isPending}
                   className="w-full h-11 flex items-center justify-center rounded-md border border-danger/40 bg-danger/[0.06] text-[#ff6060] font-display text-[13px] font-black tracking-[0.08em] uppercase transition-all hover:bg-danger/[0.12] disabled:opacity-50"
                 >
-                  {closingRun ? "Closing..." : "Close & Start New"}
+                  {closeRun.isPending ? "Closing..." : "Close & Start New"}
                 </button>
               </div>
             </div>

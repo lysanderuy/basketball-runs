@@ -1,55 +1,61 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
+import { useConfirmTeamsMutation, useGames } from "@/hooks/use-game";
+import { useQueue, useUpdateQueueStatusMutation } from "@/hooks/use-queue";
+import { useRun } from "@/hooks/use-run";
+import { useTeamDraftStore, type Player } from "@/stores/team-draft.store";
+import { ApiError } from "@/lib/api/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Player = {
-  id: string;
-  displayName: string;
-  gamesPlayed: number;
-};
-
-type RunData = {
-  id: string;
-  name: string;
-  location: string | null;
-  sessionCode: string;
-  scoreGoal: number;
-};
-
-type Suggestion  = { player: Player; forTeam: "a" | "b" };
-type UndoToast   = { key: number; message: string; undo: () => Promise<void> };
 type ActionModal = { player: Player; team: "a" | "b" };
-type SwapMode    = { benchPlayer: Player };
-
-// ─── Confirm-teams error copy ───────────────────────────────────────────────────
-// Maps a failed create-game response status to host-facing copy. Any status not
-// listed (and network failures) falls back to the generic message, so the host
-// always gets feedback.
-const CONFIRM_ERROR_BY_STATUS: Record<number, string> = {
-  409: "A game is already in progress. End it before starting a new one.",
-  422: "Your roster changed — a selected player is no longer available. Refresh and try again.",
-  401: "Your session expired or you're no longer the host. Refresh and sign in again.",
-  403: "Your session expired or you're no longer the host. Refresh and sign in again.",
-};
-const GENERIC_CONFIRM_ERROR = "Couldn't start the game. Please try again.";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeamAssignmentPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const [run,            setRun]            = useState<RunData | null>(null);
-  const [teams,          setTeams]          = useState<{ a: Player[]; b: Player[] }>({ a: [], b: [] });
-  const [bench,          setBench]          = useState<Player[]>([]);
-  const [nextGameNumber, setNextGameNumber] = useState(1);
+
+  const runQuery   = useRun(code);
+  const queueQuery = useQueue(code);
+  const gamesQuery = useGames(code);
+  const statusMutation = useUpdateQueueStatusMutation(code);
+  const confirmMutation = useConfirmTeamsMutation(code);
+
+  const run = runQuery.data ?? null;
+  const gamesData = gamesQuery.data;
+  const nextGameNumber =
+    gamesData && gamesData.length > 0
+      ? Math.max(...gamesData.map((g) => g.gameNumber)) + 1
+      : 1;
+
+  // Draft domain state — Zustand store
+  const teams      = useTeamDraftStore((s) => s.teams);
+  const bench      = useTeamDraftStore((s) => s.bench);
+  const suggestion = useTeamDraftStore((s) => s.suggestion);
+  const swapMode   = useTeamDraftStore((s) => s.swapMode);
+  const undoToast  = useTeamDraftStore((s) => s.undoToast);
+
+  const resetDraft             = useTeamDraftStore((s) => s.reset);
+  const initFromQueue          = useTeamDraftStore((s) => s.initFromQueue);
+  const movePlayerInStore      = useTeamDraftStore((s) => s.movePlayer);
+  const scrambleInStore        = useTeamDraftStore((s) => s.scramble);
+  const benchForGameInStore    = useTeamDraftStore((s) => s.benchForGame);
+  const removeDraftPlayer      = useTeamDraftStore((s) => s.removeDraftPlayer);
+  const acceptSuggestionInStore = useTeamDraftStore((s) => s.acceptSuggestion);
+  const addFromBench           = useTeamDraftStore((s) => s.addFromBench);
+  const executeSwapInStore     = useTeamDraftStore((s) => s.executeSwap);
+  const setSuggestion          = useTeamDraftStore((s) => s.setSuggestion);
+  const setSwapMode            = useTeamDraftStore((s) => s.setSwapMode);
+  const commitUndo             = useTeamDraftStore((s) => s.commitUndo);
+  const dismissUndo            = useTeamDraftStore((s) => s.dismissUndo);
+
   const [loading,        setLoading]        = useState(true);
   const [scrambling,     setScrambling]     = useState(false);
   const [justMovedId,    setJustMovedId]    = useState<string | null>(null);
-  const [confirming,     setConfirming]     = useState(false);
   const [confirmError,   setConfirmError]   = useState<string | null>(null);
 
   // Drag
@@ -62,21 +68,11 @@ export default function TeamAssignmentPage() {
   // Removal flash — brief red glow before the card is removed from DOM
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
-  // Auto-replenish suggestion
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
-
   // Bench sheet (Manage Roster)
   const [showBenchSheet, setShowBenchSheet] = useState(false);
 
-  // Swap mode — set when bench sheet closes with even teams
-  const [swapMode, setSwapMode] = useState<SwapMode | null>(null);
-
   // Single-× action modal
   const [actionModal, setActionModal] = useState<ActionModal | null>(null);
-
-  // Undo toast
-  const [undoToast,  setUndoToast]  = useState<UndoToast | null>(null);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const zoneARef = useRef<HTMLDivElement>(null);
   const zoneBRef = useRef<HTMLDivElement>(null);
@@ -90,45 +86,26 @@ export default function TeamAssignmentPage() {
     import("drag-drop-touch");
   }, []);
 
-  // ─── Load ────────────────────────────────────────────────────────────────────
+  // ─── Seed draft ─────────────────────────────────────────────────────────────
 
-  const load = useCallback(async () => {
-    const [runRes, queueRes, gamesRes] = await Promise.all([
-      fetch(`/api/runs/${code}`),
-      fetch(`/api/runs/${code}/queue`),
-      fetch(`/api/runs/${code}/games`),
-    ]);
+  // The store is shared across visits — wipe any stale draft from a previous
+  // assignment before this page seeds its own.
+  const seededRef = useRef(false);
+  useEffect(() => { resetDraft(); }, [resetDraft]);
 
-    const runData: RunData | null = runRes.ok ? await runRes.json() : null;
-    const queueData: {
-      onCourt: Player[];
-      waiting: Array<{ id: string; displayName: string; status: string; gamesPlayed: number }>;
-    } = queueRes.ok ? await queueRes.json() : { onCourt: [], waiting: [] };
-    const gamesData: Array<{ gameNumber: number }> = gamesRes.ok ? await gamesRes.json() : [];
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (runQuery.isPending || queueQuery.isPending || gamesQuery.isPending) return;
+    seededRef.current = true;
 
-    setRun(runData);
-    setNextGameNumber(
-      gamesData.length > 0 ? Math.max(...gamesData.map((g) => g.gameNumber)) + 1 : 1,
-    );
-
+    const queueData = queueQuery.data ?? { onCourt: [], waiting: [] };
     const waitingPlayers = queueData.waiting
       .filter((e) => e.status === "waiting")
       .map((e) => ({ id: e.id, displayName: e.displayName, gamesPlayed: e.gamesPlayed }));
 
-    // First 10 waiting players seed the two teams; any overflow waits on the
-    // bench. Benching is a draft-only action (local state) — it never persists,
-    // so an abandoned assignment leaves no trace and a benched player is simply
-    // first in line again next time.
-    const eligible = waitingPlayers.slice(0, 10);
-    const benchPlayers = waitingPlayers.slice(10);
-
-    const half = Math.ceil(eligible.length / 2);
-    setTeams({ a: eligible.slice(0, half), b: eligible.slice(half) });
-    setBench(benchPlayers);
+    initFromQueue(waitingPlayers);
     setLoading(false);
-  }, [code]);
-
-  useEffect(() => { load(); }, [load]);
+  }, [runQuery.isPending, queueQuery.isPending, gamesQuery.isPending, queueQuery.data, initFromQueue]);
 
   // ─── Visual feedback helpers ──────────────────────────────────────────────────
 
@@ -151,53 +128,15 @@ export default function TeamAssignmentPage() {
     });
   }
 
-  // ─── Undo toast ──────────────────────────────────────────────────────────────
-
-  function pushUndo(message: string, undo: () => Promise<void>) {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoToast({ key: Date.now(), message, undo });
-    undoTimerRef.current = setTimeout(() => setUndoToast(null), 4500);
-  }
-
-  async function commitUndo() {
-    if (!undoToast) return;
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    const fn = undoToast.undo;
-    setUndoToast(null);
-    await fn();
-  }
-
-  function dismissUndo() {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoToast(null);
-  }
-
   // ─── API helpers ─────────────────────────────────────────────────────────────
-
-  async function patchQueueStatus(entryId: string, status: "waiting" | "marked_out") {
-    const res = await fetch(`/api/runs/${code}/queue/${entryId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) throw new Error(`PATCH status ${res.status}`);
-  }
 
   // ─── Bench for this game (draft-only, no persistence) ─────────────────────────
 
   async function benchForGame(player: Player, team: "a" | "b") {
     setActionModal(null);
-    const firstBench = bench[0] ?? null;
-    // Benching only edits the local draft — the player is left untouched in the
-    // DB (still 'waiting') and is simply not included when teams are confirmed.
     // The flash animation runs purely for visual feedback before the card leaves.
     await flashRemove(player.id);
-    setTeams((prev) => ({ ...prev, [team]: prev[team].filter((p) => p.id !== player.id) }));
-    setSuggestion(firstBench ? { player: firstBench, forTeam: team } : null);
-    pushUndo(`Benched ${player.displayName}`, async () => {
-      setTeams((prev) => ({ ...prev, [team]: [...prev[team], player] }));
-      setSuggestion(null);
-    });
+    benchForGameInStore(player, team);
   }
 
   // ─── Remove from run (hard) ───────────────────────────────────────────────────
@@ -207,16 +146,13 @@ export default function TeamAssignmentPage() {
     // Run the flash animation and API call in parallel.
     // State is only updated if the API succeeds — if it fails, the card
     // reappears naturally once the flash animation ends.
-    const [, ok] = await Promise.all([
+    const [, result] = await Promise.allSettled([
       flashRemove(player.id),
-      patchQueueStatus(player.id, "marked_out").then(() => true).catch(() => false),
+      statusMutation.mutateAsync({ entryId: player.id, status: "marked_out" }),
     ]);
-    if (!ok) return;
-    setSuggestion((prev) => (prev?.player.id === player.id ? null : prev));
-    setTeams((prev) => ({ ...prev, [team]: prev[team].filter((p) => p.id !== player.id) }));
-    pushUndo(`Removed ${player.displayName}`, async () => {
-      setTeams((prev) => ({ ...prev, [team]: [...prev[team], player] }));
-      await patchQueueStatus(player.id, "waiting");
+    if (result.status === "rejected") return;
+    removeDraftPlayer(player, team, async () => {
+      await statusMutation.mutateAsync({ entryId: player.id, status: "waiting" });
     });
   }
 
@@ -224,15 +160,9 @@ export default function TeamAssignmentPage() {
 
   function acceptSuggestion() {
     if (!suggestion) return;
-    const { player, forTeam } = suggestion;
-    setTeams((prev) => ({ ...prev, [forTeam]: [...prev[forTeam], player] }));
-    setBench((prev) => prev.filter((b) => b.id !== player.id));
-    setSuggestion(null);
-    markArrived(player.id);
-    pushUndo(`Added ${player.displayName}`, async () => {
-      setTeams((prev) => ({ ...prev, [forTeam]: prev[forTeam].filter((p) => p.id !== player.id) }));
-      setBench((prev) => [player, ...prev]);
-    });
+    const playerId = suggestion.player.id;
+    acceptSuggestionInStore();
+    markArrived(playerId);
   }
 
   // ─── Bench sheet ─────────────────────────────────────────────────────────────
@@ -242,14 +172,8 @@ export default function TeamAssignmentPage() {
 
     if (teams.a.length !== teams.b.length) {
       const targetTeam = teams.a.length < teams.b.length ? "a" : "b";
-      setTeams((prev) => ({ ...prev, [targetTeam]: [...prev[targetTeam], benchPlayer] }));
-      setBench((prev) => prev.filter((b) => b.id !== benchPlayer.id));
-      setSuggestion((prev) => (prev?.player.id === benchPlayer.id ? null : prev));
+      addFromBench(benchPlayer, targetTeam);
       markArrived(benchPlayer.id);
-      pushUndo(`Added ${benchPlayer.displayName}`, async () => {
-        setTeams((prev) => ({ ...prev, [targetTeam]: prev[targetTeam].filter((p) => p.id !== benchPlayer.id) }));
-        setBench((prev) => [benchPlayer, ...prev]);
-      });
     } else {
       // Even teams — host picks who sits out by tapping a card
       setSwapMode({ benchPlayer });
@@ -261,22 +185,8 @@ export default function TeamAssignmentPage() {
   function executeSwap(assignedPlayer: Player, assignedTeam: "a" | "b") {
     if (!swapMode) return;
     const incoming = swapMode.benchPlayer;
-    setSwapMode(null);
-    setTeams((prev) => ({
-      ...prev,
-      [assignedTeam]: prev[assignedTeam].map((p) => (p.id === assignedPlayer.id ? incoming : p)),
-    }));
-    setBench((prev) => prev.map((b) => (b.id === incoming.id ? assignedPlayer : b)));
-    setSuggestion((prev) => (prev?.player.id === incoming.id ? null : prev));
+    executeSwapInStore(assignedPlayer, assignedTeam);
     markArrived(incoming.id);
-    pushUndo(`Swapped ${incoming.displayName} ↔ ${assignedPlayer.displayName}`, async () => {
-      setSwapMode(null);
-      setTeams((prev) => ({
-        ...prev,
-        [assignedTeam]: prev[assignedTeam].map((p) => (p.id === incoming.id ? assignedPlayer : p)),
-      }));
-      setBench((prev) => prev.map((b) => (b.id === assignedPlayer.id ? incoming : b)));
-    });
   }
 
   function cancelSwapMode() { setSwapMode(null); }
@@ -284,16 +194,7 @@ export default function TeamAssignmentPage() {
   // ─── Drag ─────────────────────────────────────────────────────────────────────
 
   function movePlayer(playerId: string, toTeam: "a" | "b") {
-    setTeams((prev) => {
-      const fromTeam = toTeam === "a" ? "b" : "a";
-      const player   = prev[fromTeam].find((p) => p.id === playerId);
-      if (!player) return prev;
-      return {
-        ...prev,
-        [fromTeam]: prev[fromTeam].filter((p) => p.id !== playerId),
-        [toTeam]:   [...prev[toTeam], player],
-      };
-    });
+    movePlayerInStore(playerId, toTeam);
     setJustMovedId(playerId);
     setTimeout(() => setJustMovedId(null), 350);
   }
@@ -325,43 +226,34 @@ export default function TeamAssignmentPage() {
     if (scrambling) return;
     setScrambling(true);
     setTimeout(() => {
-      setTeams((prev) => {
-        const all = [...prev.a, ...prev.b];
-        for (let i = all.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [all[i], all[j]] = [all[j], all[i]];
-        }
-        const half = Math.ceil(all.length / 2);
-        return { a: all.slice(0, half), b: all.slice(half) };
-      });
+      scrambleInStore();
       setScrambling(false);
     }, 250);
   }
 
   // ─── Confirm ──────────────────────────────────────────────────────────────────
 
+  const CONFIRM_ERROR_BY_CODE: Record<string, string> = {
+    ONGOING_GAME: "A game is already in progress. End it before starting a new one.",
+    INVALID_ENTRY_IDS: "Your roster changed — a selected player is no longer available. Refresh and try again.",
+    VALIDATION: "Your roster changed — a selected player is no longer available. Refresh and try again.",
+    UNAUTHORIZED: "Your session expired or you're no longer the host. Refresh and sign in again.",
+    FORBIDDEN: "Your session expired or you're no longer the host. Refresh and sign in again.",
+  };
+  const GENERIC_CONFIRM_ERROR = "Couldn't start the game. Please try again.";
+
   async function confirmTeams() {
-    if (confirming || teams.a.length === 0 || teams.b.length === 0) return;
-    setConfirming(true);
+    if (confirmMutation.isPending || teams.a.length === 0 || teams.b.length === 0) return;
     setConfirmError(null);
     try {
-      const res = await fetch(`/api/runs/${code}/games`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teamA: teams.a.map((p) => p.id),
-          teamB: teams.b.map((p) => p.id),
-        }),
+      await confirmMutation.mutateAsync({
+        teamA: teams.a.map((p) => p.id),
+        teamB: teams.b.map((p) => p.id),
       });
-      if (!res.ok) {
-        setConfirmError(CONFIRM_ERROR_BY_STATUS[res.status] ?? GENERIC_CONFIRM_ERROR);
-        setConfirming(false);
-        return;
-      }
       router.push(`/runs/${code}/game`);
-    } catch {
-      setConfirmError("Couldn't start the game. Check your connection and try again.");
-      setConfirming(false);
+    } catch (e) {
+      const code = e instanceof ApiError ? e.code : "UNKNOWN";
+      setConfirmError(CONFIRM_ERROR_BY_CODE[code] ?? GENERIC_CONFIRM_ERROR);
     }
   }
 
@@ -609,16 +501,19 @@ export default function TeamAssignmentPage() {
           <button
             type="button"
             onClick={confirmTeams}
-            disabled={confirming || teams.a.length === 0 || teams.b.length === 0}
+            disabled={confirmMutation.isPending || teams.a.length === 0 || teams.b.length === 0}
+            // When adding a new mutation that should block the confirm button, extend the
+            // `confirmMutation.isPending` check on both the disabled prop and className below.
+            // A missed entry enables the button mid-flight.
             className={[
               "w-full h-[52px] rounded-md bg-accent text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center gap-2 transition-opacity",
-              confirming || teams.a.length === 0 || teams.b.length === 0
+              confirmMutation.isPending || teams.a.length === 0 || teams.b.length === 0
                 ? "opacity-40 cursor-not-allowed"
                 : "hover:opacity-90 active:opacity-75",
             ].join(" ")}
           >
             <Check className="w-4 h-4" strokeWidth={2.5} />
-            {confirming ? "Starting…" : "Confirm teams"}
+            {confirmMutation.isPending ? "Starting…" : "Confirm teams"}
           </button>
         </div>
       </div>

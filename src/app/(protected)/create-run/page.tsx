@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/ui/topbar";
 import { Button } from "@/components/ui/button";
 import { cn, generateRunCode } from "@/lib/utils";
-import type { Run } from "@/types/db";
+import { useCreateRunMutation } from "@/hooks/use-run";
 
 type Format = "winner_stays" | "new_ten";
 type PointSystem = "one_two" | "two_three";
@@ -31,7 +31,7 @@ export default function CreateRunPage() {
   const [scoreAnimating, setScoreAnimating] = useState(false);
   const [timeLimitOn, setTimeLimitOn] = useState(false);
   const [selectedTimeSeconds, setSelectedTimeSeconds] = useState(900);
-  const [submitting, setSubmitting] = useState(false);
+  const createRun = useCreateRunMutation();
 
   const canSubmit = name.trim() !== "" && location.trim() !== "";
 
@@ -49,9 +49,8 @@ export default function CreateRunPage() {
     if (scoreGoal < SCORE_MAX) bumpScore(scoreGoal + 1);
   };
 
-  const handleSubmit = async () => {
-    if (!canSubmit || submitting) return;
-    setSubmitting(true);
+  const handleSubmit = () => {
+    if (!canSubmit || createRun.isPending) return;
 
     const payload = {
       name: name.trim(),
@@ -63,19 +62,9 @@ export default function CreateRunPage() {
       ...(timeLimitOn ? { timeLimitSeconds: selectedTimeSeconds } : {}),
     };
 
-    const res = await fetch("/api/runs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    createRun.mutate(payload, {
+      onSuccess: (data) => router.push(`/runs/${data.sessionCode}/feed`),
     });
-
-    if (!res.ok) {
-      setSubmitting(false);
-      return;
-    }
-
-    const run = (await res.json()) as Run;
-    router.push(`/runs/${run.sessionCode}/feed`);
   };
 
   const CloseButton = (
@@ -320,10 +309,10 @@ export default function CreateRunPage() {
           variant="primary"
           size="lg"
           className="w-full"
-          disabled={!canSubmit || submitting}
+          disabled={!canSubmit || createRun.isPending}
           onClick={handleSubmit}
         >
-          {submitting ? "Creating..." : "Create Run"}
+          {createRun.isPending ? "Creating..." : "Create Run"}
         </Button>
       </div>
     </div>

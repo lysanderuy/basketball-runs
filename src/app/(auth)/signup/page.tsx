@@ -1,13 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useActionState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { signIn } from "@/app/auth/actions";
+import { signUp } from "@/app/(auth)/actions";
 
 function GoogleIcon() {
   return (
@@ -20,11 +18,9 @@ function GoogleIcon() {
   );
 }
 
-function LoginForm() {
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+export default function SignupPage() {
   const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string } | null, formData: FormData) => signIn(_prev, formData),
+    async (_prev: { error: string } | null, formData: FormData) => signUp(_prev, formData),
     null,
   );
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +29,7 @@ function LoginForm() {
     <div className="app-shell px-5 overflow-y-auto">
       <div className="pt-4 flex items-center">
         <Link
-          href="/"
+          href="/login"
           className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-all hover:border-accent-dim hover:text-accent hover:bg-accent-glow"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -55,10 +51,10 @@ function LoginForm() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1 animate-fade-up">
             <h2 className="font-display text-[20px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
-              Sign In
+              Create Account
             </h2>
             <p className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
-              Back on the court.
+              Get in the queue.
             </p>
           </div>
 
@@ -69,7 +65,7 @@ function LoginForm() {
           >
             <GoogleIcon />
             <span className="font-display text-[14px] font-bold tracking-[0.08em] uppercase text-text-secondary">
-              Sign in with Google
+              Sign up with Google
             </span>
           </button>
 
@@ -85,9 +81,29 @@ function LoginForm() {
           </div>
 
           <form action={formAction} className="flex flex-col gap-4">
-            <input type="hidden" name="next" value={next} />
-
             <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.14s" }}>
+              <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
+                Display Name
+              </label>
+              <input
+                name="displayName"
+                type="text"
+                autoComplete="nickname"
+                required
+                maxLength={32}
+                className={cn(
+                  "w-full h-13 bg-bg-surface border border-border rounded-md",
+                  "px-3.5",
+                  "font-display text-[18px] font-bold tracking-[0.06em] uppercase text-text-primary",
+                  "outline-none transition-all duration-150",
+                  "placeholder:text-text-muted placeholder:font-bold",
+                  "focus:border-border-accent focus:bg-bg-hover"
+                )}
+                placeholder=""
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.18s" }}>
               <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Email
               </label>
@@ -108,7 +124,7 @@ function LoginForm() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.18s" }}>
+            <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.22s" }}>
               <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Password
               </label>
@@ -116,8 +132,9 @@ function LoginForm() {
                 <input
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
+                  minLength={8}
                   className={cn(
                     "w-full h-13 bg-bg-surface border border-border rounded-md",
                     "px-3.5 pr-11",
@@ -150,37 +167,29 @@ function LoginForm() {
               variant="primary"
               size="lg"
               className="w-full h-14 mt-4 animate-fade-up"
-              style={{ animationDelay: "0.22s" }}
+              style={{ animationDelay: "0.26s" }}
               disabled={isPending}
             >
-              {isPending ? "Signing in…" : "Sign In"}
+              {isPending ? "Creating account…" : "Create Account"}
             </Button>
           </form>
 
           <div
             className="flex items-center justify-center gap-1.5 pt-1 animate-fade-up"
-            style={{ animationDelay: "0.26s" }}
+            style={{ animationDelay: "0.3s" }}
           >
             <span className="font-body text-[13px] text-text-muted">
-              Don&apos;t have an account?
+              Already have an account?
             </span>
             <Link
-              href="/auth/signup"
+              href="/login"
               className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
             >
-              Sign up
+              Sign in
             </Link>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="app-shell" />}>
-      <LoginForm />
-    </Suspense>
   );
 }

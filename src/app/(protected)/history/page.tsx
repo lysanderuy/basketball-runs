@@ -1,23 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useState, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-
-type RunSummary = {
-  id: string;
-  name: string;
-  location: string | null;
-  status: "lobby" | "active" | "completed";
-  sessionCode: string;
-  createdAt: string;
-  gameCount: number;
-  isHost: boolean;
-};
+import { useRuns, type RunSummary } from "@/hooks/use-run";
 
 type Filter = "all" | "created" | "joined";
-type PageState = "loading" | "ready";
+type PageState = "pending" | "ready";
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(iso));
@@ -47,25 +37,19 @@ const JOINED_COLOR = "#f5a842";
 
 export default function HistoryPage() {
   const router = useRouter();
-  const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [pageState, setPageState] = useState<PageState>("loading");
+  const { data: queryData, isPending } = useRuns();
   const [filter, setFilter] = useState<Filter>("all");
 
-  useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/runs");
-      const data: RunSummary[] = res.ok ? await res.json() : [];
-      const sorted = [...data].sort((a, b) => {
-        const aActive = a.status === "active" || a.status === "lobby" ? 0 : 1;
-        const bActive = b.status === "active" || b.status === "lobby" ? 0 : 1;
-        if (aActive !== bActive) return aActive - bActive;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      setRuns(sorted);
-      setPageState("ready");
-    }
-    load();
-  }, []);
+  const pageState: PageState = isPending ? "pending" : "ready";
+  const runs = useMemo<RunSummary[]>(() => {
+    if (!queryData) return [];
+    return [...queryData].sort((a, b) => {
+      const aActive = a.status === "active" || a.status === "lobby" ? 0 : 1;
+      const bActive = b.status === "active" || b.status === "lobby" ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [queryData]);
 
   const counts = useMemo(() => ({
     all: runs.length,
@@ -144,7 +128,7 @@ export default function HistoryPage() {
         </div>
 
         <div className="px-5 pt-3 pb-10">
-          {pageState === "loading" && (
+          {pageState === "pending" && (
             <div className="flex flex-col gap-2">
               {[0, 1, 2].map((i) => (
                 <div

@@ -1,7 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getRunsForUser } from "@/services/runs";
-import { deriveInitials } from "@/lib/utils";
-import HomeClient, { type HomeAuthState } from "@/components/HomeClient";
+import HomeClient from "@/components/HomeClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,26 +9,9 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return <HomeClient initialAuth={{ status: "signed-out" }} />;
-  }
-
-  const runs = await getRunsForUser(user.id);
-  const initials = deriveInitials(user.user_metadata, user.email);
-
-  const auth: HomeAuthState = {
-    status: "signed-in",
-    initials,
-    email: user.email ?? "",
-    runs: runs.map((r) => ({
-      id: r.id,
-      name: r.name,
-      location: r.location,
-      status: r.status,
-      sessionCode: r.sessionCode,
-      gameCount: r.gameCount,
-    })),
-  };
-
-  return <HomeClient initialAuth={auth} />;
+  return (
+    <HomeClient
+      initialUser={user ? { id: user.id, email: user.email ?? "", metadata: user.user_metadata } : null}
+    />
+  );
 }
