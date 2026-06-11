@@ -5,7 +5,7 @@ import type {
   games,
   gamePlayers,
   scoreEvents,
-} from "@/lib/db/schema";
+} from "@/db/schema";
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
