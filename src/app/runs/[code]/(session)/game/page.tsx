@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
@@ -57,6 +57,7 @@ function isClockRunning(game: GameData): boolean {
 
 export default function GamePage() {
   const { code } = useParams<{ code: string }>();
+  const router = useRouter();
 
   const runQuery = useRun(code);
   const gamesQuery = useGames(code);
@@ -213,6 +214,17 @@ export default function GamePage() {
 
     return () => clearInterval(interval);
   }, [details, run, isHost, handleEndGame]);
+
+  // Host: navigate to the dedicated results page once the game completes.
+  // All three triggers (goal, clock, manual) update game.status to 'completed';
+  // the host's path replaces so back from /results doesn't loop here. Spectators
+  // fall through to the in-page overlay.
+  useEffect(() => {
+    if (!details || !isHost) return;
+    if (details.game.status !== "completed") return;
+    router.replace(`/runs/${code}/results?gameId=${currentGameId ?? ""}`);
+  }, [details?.game.status, isHost, code, currentGameId, router]);
+
   const game = details?.game ?? null;
   const teamA = details?.players.filter((p) => p.team === "team_a") ?? [];
   const teamB = details?.players.filter((p) => p.team === "team_b") ?? [];
@@ -523,8 +535,8 @@ export default function GamePage() {
         </>
       )}
 
-      {/* Game over overlay */}
-      {game!.status === "completed" && (
+      {/* Game over overlay — spectators only; hosts are redirected to /results */}
+      {!isHost && game!.status === "completed" && (
         <div className="absolute inset-0 z-50 bg-bg/85 backdrop-blur-sm flex items-center justify-center px-5">
           <div className="w-full max-w-[320px] bg-bg-raised border border-border rounded-xl p-6 flex flex-col items-center gap-5 animate-slide-up">
             <span className="font-display text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted">
