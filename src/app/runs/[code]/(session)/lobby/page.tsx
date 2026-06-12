@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
-import { useFeedRealtime } from "@/hooks/use-feed-realtime";
+import { useLobbyRealtime } from "@/hooks/use-lobby-realtime";
 import { formatTime, winnerLabel } from "@/lib/utils";
 import { useGames, type GameData } from "@/hooks/use-game";
 import { useRun } from "@/hooks/use-run";
@@ -25,7 +25,7 @@ function gameDuration(startedAt: string | null, endedAt: string | null): string 
   return formatTime(Math.round(ms / 1000));
 }
 
-export default function FeedPage() {
+export default function LobbyPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
 
@@ -45,7 +45,7 @@ export default function FeedPage() {
   const completedGames = games.filter((g) => g.status === "completed");
 
   const runId = run?.id ?? null;
-  useFeedRealtime(runId, code, activeGame?.id ?? null, setLastScorer);
+  useLobbyRealtime(runId, code, activeGame?.id ?? null, setLastScorer);
 
   // Clear last scorer when active game changes or disappears.
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function FeedPage() {
         ) : undefined}
       />
 
-      {/* SCROLLABLE FEED */}
+      {/* SCROLLABLE CONTENT */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pb-8">
 
         {/* HOST — NO ACTIVE GAME: Start Game prompt */}
@@ -210,7 +210,7 @@ export default function FeedPage() {
             {completedGames.map((game) => (
               <Link
                 key={game.id}
-                href={`/runs/${code}/feed/${game.id}`}
+                href={`/runs/${code}/lobby/${game.id}`}
                 className="bg-bg-surface border border-border rounded-md px-3.5 py-3 flex items-center gap-3 cursor-pointer relative overflow-hidden group transition-[border-color] hover:border-border-accent active:scale-[0.99]"
               >
                 <div className="absolute inset-0 bg-accent-glow opacity-0 group-hover:opacity-100 transition-opacity" />

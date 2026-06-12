@@ -178,7 +178,7 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
             >
               {activeRun && (
                 <button
-                  onClick={() => router.push(`/runs/${activeRun.sessionCode}/feed`)}
+                  onClick={() => router.push(`/runs/${activeRun.sessionCode}/lobby`)}
                   className="w-full flex flex-col gap-3 px-[18px] py-4 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04] hover:bg-accent/[0.08] transition-colors text-left"
                 >
                   <div className="flex items-center justify-between">
@@ -349,7 +349,7 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
               <div className="flex flex-col gap-2.5">
                 <button
                   type="button"
-                  onClick={() => router.push(`/runs/${activeRun.sessionCode}/feed`)}
+                  onClick={() => router.push(`/runs/${activeRun.sessionCode}/lobby`)}
                   className="w-full h-11 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[13px] font-black tracking-[0.08em] uppercase transition-opacity hover:opacity-90"
                 >
                   Continue Run

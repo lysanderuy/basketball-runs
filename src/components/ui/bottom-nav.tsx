@@ -11,9 +11,9 @@ export function BottomNav() {
 
   const tabs = [
     {
-      href: `/runs/${code}/feed`,
-      label: "Feed",
-      active: pathname.includes("/feed"),
+      href: `/runs/${code}/lobby`,
+      label: "Lobby",
+      active: pathname.includes("/lobby"),
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
           <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />

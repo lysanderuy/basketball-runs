@@ -63,7 +63,7 @@ export default function CreateRunPage() {
     };
 
     createRun.mutate(payload, {
-      onSuccess: (data) => router.push(`/runs/${data.sessionCode}/feed`),
+      onSuccess: (data) => router.push(`/runs/${data.sessionCode}/lobby`),
     });
   };
 
