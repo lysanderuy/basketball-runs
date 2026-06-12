@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
@@ -57,6 +57,7 @@ function isClockRunning(game: GameData): boolean {
 
 export default function GamePage() {
   const { code } = useParams<{ code: string }>();
+  const router = useRouter();
 
   const runQuery = useRun(code);
   const gamesQuery = useGames(code);
@@ -213,6 +214,16 @@ export default function GamePage() {
 
     return () => clearInterval(interval);
   }, [details, run, isHost, handleEndGame]);
+
+  // Navigate to /results when the game completes. All three triggers (goal,
+  // clock, manual) update game.status to 'completed'; replace so back from
+  // /results doesn't loop here. Applies to all viewers on this page.
+  useEffect(() => {
+    if (!details || !currentGameId) return;
+    if (details.game.status !== "completed") return;
+    router.replace(`/runs/${code}/results?gameId=${currentGameId}`);
+  }, [details?.game.status, code, currentGameId, router]);
+
   const game = details?.game ?? null;
   const teamA = details?.players.filter((p) => p.team === "team_a") ?? [];
   const teamB = details?.players.filter((p) => p.team === "team_b") ?? [];
@@ -523,88 +534,6 @@ export default function GamePage() {
         </>
       )}
 
-      {/* Game over overlay */}
-      {game!.status === "completed" && (
-        <div className="absolute inset-0 z-50 bg-bg/85 backdrop-blur-sm flex items-center justify-center px-5">
-          <div className="w-full max-w-[320px] bg-bg-raised border border-border rounded-xl p-6 flex flex-col items-center gap-5 animate-slide-up">
-            <span className="font-display text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted">
-              Final Score
-            </span>
-
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted">
-                  Runs
-                </span>
-                <span
-                  className="font-display font-black leading-none"
-                  style={{
-                    fontSize: "72px",
-                    color: game!.winner === "team_a"
-                      ? "var(--accent)"
-                      : game!.winner === "tie"
-                      ? "var(--warning)"
-                      : "var(--text-primary)",
-                  }}
-                >
-                  {game!.scoreA}
-                </span>
-              </div>
-              <span className="font-display text-[36px] font-black text-text-muted leading-none">
-                –
-              </span>
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted">
-                  Next
-                </span>
-                <span
-                  className="font-display font-black leading-none"
-                  style={{
-                    fontSize: "72px",
-                    color: game!.winner === "team_b"
-                      ? "var(--accent)"
-                      : game!.winner === "tie"
-                      ? "var(--warning)"
-                      : "var(--text-primary)",
-                  }}
-                >
-                  {game!.scoreB}
-                </span>
-              </div>
-            </div>
-
-            <span
-              className="font-display text-[14px] font-black tracking-[0.08em] uppercase"
-              style={{
-                color: game!.winner === "tie" ? "var(--warning)" : "var(--accent)",
-              }}
-            >
-              {game!.winner === "team_a"
-                ? "Runs Win"
-                : game!.winner === "team_b"
-                ? "Next Wins"
-                : "Tie Game"}
-            </span>
-
-            <div className="flex gap-2.5 w-full">
-              <Link
-                href={`/runs/${code}/feed`}
-                className="flex-1 h-11 flex items-center justify-center rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
-              >
-                Feed
-              </Link>
-              {isHost && (
-                <Link
-                  href={`/runs/${code}/team-assignment`}
-                  className="flex-1 h-11 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[13px] font-black tracking-[0.08em] uppercase transition-opacity hover:opacity-90"
-                >
-                  Next Game
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
