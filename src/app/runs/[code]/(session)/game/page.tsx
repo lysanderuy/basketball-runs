@@ -225,7 +225,7 @@ export default function GamePage() {
       ? `/runs/${code}/results?gameId=${currentGameId}`
       : `/runs/${code}/lobby/${currentGameId}`;
     router.replace(target);
-  }, [details?.game.status, code, currentGameId, isHost, router]);
+  }, [details, code, currentGameId, isHost, router]);
 
   const game = details?.game ?? null;
   const teamA = details?.players.filter((p) => p.team === "team_a") ?? [];
@@ -284,11 +284,11 @@ export default function GamePage() {
         run={run}
         loading={false}
         badge={
-          <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent/15 border border-accent/30 px-2.5 py-1 rounded-[4px]">
+          <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
             Game {game!.gameNumber}
           </span>
         }
-        onEndGame={isHost && game!.status !== "completed" ? () => setShowEndConfirm(true) : undefined}
+        menuAction={isHost && game!.status !== "completed" ? { label: "End Game", onSelect: () => setShowEndConfirm(true) } : undefined}
       />
 
       {/* Scrollable content */}

@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Home } from "lucide-react";
+import { ChevronDown, ChevronUp, Home } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
 import { useCloseRunMutation, useRun } from "@/hooks/use-run";
-import { useGameDetails, useEndGameMutation, type PlayerData } from "@/hooks/use-game";
+import { useGameDetails } from "@/hooks/use-game";
 import { useQueue } from "@/hooks/use-queue";
 import { useSessionUser } from "@/hooks/use-session";
 import { formatTime, winnerLabel } from "@/lib/utils";
@@ -18,7 +18,13 @@ function gameDuration(startedAt: string | null, endedAt: string | null): string 
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={<SessionTopbar run={null} loading={true} />}>
+    <Suspense
+      fallback={
+        <div className="app-shell h-dvh overflow-hidden">
+          <SessionTopbar run={null} loading={true} />
+        </div>
+      }
+    >
       <ResultsContent />
     </Suspense>
   );
@@ -46,50 +52,92 @@ function ResultsContent() {
     (!!gameId && detailsQuery.isPending) ||
     queueQuery.isPending;
 
-  const endGameMutation = useEndGameMutation(code, gameId ?? "");
   const closeRunMutation = useCloseRunMutation(code);
   const [endingRun, setEndingRun] = useState(false);
+  const [showEndRunConfirm, setShowEndRunConfirm] = useState(false);
+  const [upNextExpanded, setUpNextExpanded] = useState(false);
 
   const game = details?.game ?? null;
   const teamA = useMemo(
-    () => (details?.players ?? []).filter((p) => p.team === "team_a") as PlayerData[],
+    () =>
+      (details?.players ?? [])
+        .filter((p) => p.team === "team_a")
+        .sort((a, b) => b.points - a.points),
     [details],
   );
   const teamB = useMemo(
-    () => (details?.players ?? []).filter((p) => p.team === "team_b") as PlayerData[],
+    () =>
+      (details?.players ?? [])
+        .filter((p) => p.team === "team_b")
+        .sort((a, b) => b.points - a.points),
     [details],
   );
 
   const isTeamAWinner = game?.winner === "team_a";
   const isTeamBWinner = game?.winner === "team_b";
-  const totalBuckets = (game?.scoreA ?? 0) + (game?.scoreB ?? 0);
+  const totalPoints = (game?.scoreA ?? 0) + (game?.scoreB ?? 0);
   const duration = game ? gameDuration(game.startedAt, game.endedAt) : "—";
 
-  const upNext = useMemo(
+  const upNextCount = run?.format === "winner_stays" ? 5 : 10;
+  const waitingEntries = useMemo(
     () => (queue?.waiting ?? []).filter((e) => e.status === "waiting"),
     [queue],
+  );
+  const upNext = useMemo(
+    () => waitingEntries.slice(0, upNextCount),
+    [waitingEntries, upNextCount],
   );
   const topScorer = useMemo(
     () => [...teamA, ...teamB].sort((a, b) => b.points - a.points)[0] ?? null,
     [teamA, teamB],
   );
-  const previewEntries = upNext.slice(0, 5);
-  const overflowCount = Math.max(0, upNext.length - 5);
+  const upNextMeasureRef = useRef<HTMLDivElement | null>(null);
+  const [visibleNameCount, setVisibleNameCount] = useState(upNextCount);
+
+  // The collapsed pill shows as many full names as fit on one row; the +N
+  // badge counts the rest of the capped up-next group, so N always matches
+  // what expanding will reveal.
+  useLayoutEffect(() => {
+    const measure = upNextMeasureRef.current;
+    if (!measure) return;
+    const container = measure.parentElement;
+    if (!container) return;
+    const compute = () => {
+      let used = 0;
+      let count = 0;
+      for (const child of Array.from(measure.children) as HTMLElement[]) {
+        used += child.offsetWidth;
+        if (used > container.clientWidth) break;
+        count++;
+      }
+      setVisibleNameCount(Math.max(1, count));
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [upNext, upNextExpanded]);
+
+  const hiddenCount = Math.max(0, upNext.length - visibleNameCount);
+  const upNextMid = Math.ceil(upNext.length / 2);
+  const upNextColumns = [upNext.slice(0, upNextMid), upNext.slice(upNextMid)];
 
   const isHost = !!userId && !!run && userId === run.hostId;
 
+  const detailsError = detailsQuery.isError;
+
   useEffect(() => {
     if (loading) return;
-    if (gameId) return;
-    router.replace(`/runs/${code}/lobby`);
-  }, [loading, gameId, code, router]);
-
-  async function handleNextGame() {
-    if (!gameId || !game || game.status !== "completed") {
-      router.push(`/runs/${code}/team-assignment`);
+    if (!gameId || detailsError) {
+      router.replace(`/runs/${code}/lobby`);
       return;
     }
-    await endGameMutation.mutateAsync();
+    if (game && game.status !== "completed") {
+      router.replace(`/runs/${code}/game`);
+    }
+  }, [loading, gameId, detailsError, game, code, router]);
+
+  function handleNextGame() {
     router.push(`/runs/${code}/team-assignment`);
   }
 
@@ -103,21 +151,24 @@ function ResultsContent() {
     }
   }
 
-  if (loading) {
+  const redirecting =
+    !gameId || detailsError || (!!game && game.status !== "completed");
+
+  if (loading || redirecting) {
     return (
-      <>
+      <div className="app-shell h-dvh overflow-hidden">
         <SessionTopbar run={null} loading={true} />
         <div className="flex-1 flex items-center justify-center">
           <div className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted animate-pulse">
             Loading…
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="app-shell h-dvh overflow-hidden">
       <SessionTopbar
         run={run}
         loading={false}
@@ -126,9 +177,10 @@ function ResultsContent() {
             Game {game.gameNumber}
           </span>
         ) : undefined}
+        menuAction={isHost ? { label: "End Run", onSelect: () => setShowEndRunConfirm(true) } : undefined}
       />
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4 [scrollbar-gutter:stable]">
 
         <div className="relative flex flex-col items-center gap-1 pt-6 pb-5 flex-shrink-0">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[260px] h-[140px] bg-accent-glow rounded-full blur-[48px] pointer-events-none" />
@@ -170,19 +222,23 @@ function ResultsContent() {
         </div>
 
         <div className="flex items-center justify-center gap-4 mt-2.5 mx-5">
+          {run?.timeLimitSeconds != null && (
+            <>
+              <div className="flex flex-col items-center gap-px">
+                <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Duration</span>
+                <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{duration}</span>
+              </div>
+              <div className="w-px h-6 bg-border flex-shrink-0" />
+            </>
+          )}
           <div className="flex flex-col items-center gap-px">
-            <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Duration</span>
-            <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{duration}</span>
-          </div>
-          <div className="w-px h-6 bg-border flex-shrink-0" />
-          <div className="flex flex-col items-center gap-px">
-            <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Buckets</span>
-            <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{totalBuckets}</span>
+            <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Total Pts</span>
+            <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{totalPoints}</span>
           </div>
           <div className="w-px h-6 bg-border flex-shrink-0" />
           <div className="flex flex-col items-center gap-px">
             <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Top Scorer</span>
-            <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none truncate max-w-[90px]">
+            <span className="font-display text-[18px] font-black tracking-[0.02em] uppercase text-text-secondary leading-none truncate max-w-[90px]">
               {topScorer?.displayName ?? "—"}
             </span>
           </div>
@@ -204,12 +260,12 @@ function ResultsContent() {
             {teamA.map((player, i) => (
               <div
                 key={player.queueEntryId}
-                className={`bg-bg-surface border rounded-md px-2.5 py-2 flex items-center justify-between gap-1.5 ${i === 0 ? "border-border-accent" : "border-border"}`}
+                className={`bg-bg-surface border rounded-md px-2.5 h-9 flex items-center justify-between gap-1.5 ${i === 0 && player.points > 0 ? "border-border-accent" : "border-border"}`}
               >
                 <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
                   {player.displayName}
                 </span>
-                <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
+                <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 && player.points > 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
                   {player.points}
                 </span>
               </div>
@@ -226,12 +282,12 @@ function ResultsContent() {
             {teamB.map((player, i) => (
               <div
                 key={player.queueEntryId}
-                className={`bg-bg-surface border rounded-md px-2.5 py-2 flex items-center justify-between gap-1.5 ${i === 0 ? "border-border-accent" : "border-border"}`}
+                className={`bg-bg-surface border rounded-md px-2.5 h-9 flex items-center justify-between gap-1.5 ${i === 0 && player.points > 0 ? "border-border-accent" : "border-border"}`}
               >
                 <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
                   {player.displayName}
                 </span>
-                <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
+                <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 && player.points > 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
                   {player.points}
                 </span>
               </div>
@@ -240,32 +296,64 @@ function ResultsContent() {
 
         </div>
 
-        {isHost && game && game.status === "completed" && (
-          <div className="px-5 mt-5">
-            <button
-              type="button"
-              onClick={handleNextGame}
-              disabled={endGameMutation.isPending}
-              className="w-full h-[56px] rounded-lg bg-accent text-bg font-display text-[18px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {endGameMutation.isPending ? "Ending..." : "Next Game"}
-            </button>
-          </div>
-        )}
-
         {upNext.length > 0 && (
-          <div className="mx-5 mt-4 bg-bg-surface border border-border rounded-md px-3.5 py-2.5 flex items-center gap-2.5">
-            <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
-              Up next
-            </span>
-            <span className="font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0">
-              {previewEntries.map((e) => e.displayName).join(", ")}{overflowCount > 0 ? "..." : ""}
-            </span>
-            {overflowCount > 0 && (
-              <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
-                +{overflowCount}
-              </span>
+          <div className="px-5 mt-4">
+          <button
+            type="button"
+            onClick={() => setUpNextExpanded((v) => !v)}
+            className="w-full bg-bg-surface border border-border rounded-md px-3.5 py-2.5 min-h-[44px] text-left transition-colors active:bg-bg-hover"
+          >
+            {upNextExpanded ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2.5">
+                  <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+                    Up next
+                  </span>
+                  <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  {upNextColumns.map((column, ci) => (
+                    <div key={ci} className="flex-1 min-w-0 flex flex-col">
+                      {column.map((entry, i) => (
+                        <div key={entry.id} className="flex items-center gap-2 py-1.5 min-w-0">
+                          <span className="font-display text-[11px] font-black text-text-muted w-4 text-right flex-shrink-0">
+                            {ci * upNextMid + i + 1}
+                          </span>
+                          <span className="font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary truncate">
+                            {entry.displayName}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+                  Up next
+                </span>
+                <div className="relative flex-1 min-w-0 overflow-hidden">
+                  <span className="block font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
+                    {upNext.slice(0, visibleNameCount).map((e) => e.displayName).join(", ")}
+                  </span>
+                  <div ref={upNextMeasureRef} aria-hidden className="invisible absolute top-0 left-0 flex w-max whitespace-nowrap">
+                    {upNext.map((e, i) => (
+                      <span key={e.id} className="font-display text-[13px] font-bold tracking-[0.04em] uppercase">
+                        {e.displayName}{i < upNext.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {hiddenCount > 0 && (
+                  <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
+                    +{hiddenCount}
+                  </span>
+                )}
+                <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+              </div>
             )}
+          </button>
           </div>
         )}
 
@@ -277,21 +365,58 @@ function ResultsContent() {
           <button
             type="button"
             onClick={() => router.push(`/runs/${code}/lobby`)}
-            className="h-[52px] px-[18px] flex-shrink-0 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase flex items-center justify-center gap-1.5 transition-all hover:border-text-muted hover:text-text-primary"
+            title="Lobby"
+            className="w-[52px] h-[52px] flex-shrink-0 flex items-center justify-center rounded-md border border-border bg-bg-surface text-text-secondary transition-all hover:border-text-muted hover:text-text-primary active:scale-[0.97]"
           >
-            <Home className="w-3.5 h-3.5" />
-            Lobby
+            <Home className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={handleEndRun}
-            disabled={endingRun}
-            className="flex-1 h-[52px] rounded-md bg-danger text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={handleNextGame}
+            className="flex-1 h-[52px] rounded-md bg-accent text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center transition-opacity hover:opacity-90 active:scale-[0.98]"
           >
-            {endingRun ? "Ending..." : "End Run"}
+            Next Game
           </button>
         </div>
       )}
-    </>
+
+      {showEndRunConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowEndRunConfirm(false)}
+          />
+          <div className="fixed inset-0 z-[111] flex items-center justify-center px-5">
+            <div className="w-full max-w-[320px] bg-bg-raised border border-border rounded-xl p-6 flex flex-col gap-5 animate-slide-up">
+              <div className="flex flex-col gap-1.5">
+                <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
+                  End this run?
+                </span>
+                <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                  This closes the run for everyone. This can&apos;t be undone.
+                </span>
+              </div>
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowEndRunConfirm(false)}
+                  className="flex-1 h-11 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEndRun}
+                  disabled={endingRun}
+                  className="flex-1 h-11 rounded-md border border-danger bg-danger/[0.08] text-[#ff6060] font-display text-[13px] font-black tracking-[0.1em] uppercase transition-all hover:bg-danger/[0.16] disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {endingRun ? "Ending…" : "End Run"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

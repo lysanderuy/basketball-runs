@@ -10,10 +10,10 @@ interface SessionTopbarProps {
   loading: boolean;
   badge?: React.ReactNode;
   exitHref?: string;
-  onEndGame?: () => void;
+  menuAction?: { label: string; onSelect: () => void };
 }
 
-export function SessionTopbar({ run, loading, badge, exitHref, onEndGame }: SessionTopbarProps) {
+export function SessionTopbar({ run, loading, badge, exitHref, menuAction }: SessionTopbarProps) {
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -54,7 +54,7 @@ export function SessionTopbar({ run, loading, badge, exitHref, onEndGame }: Sess
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {badge}
-          {onEndGame ? (
+          {menuAction ? (
             <div className="relative">
               <button
                 type="button"
@@ -81,11 +81,11 @@ export function SessionTopbar({ run, loading, badge, exitHref, onEndGame }: Sess
                     <div className="h-px bg-border mx-3" />
                     <button
                       type="button"
-                      onClick={() => { setShowMenu(false); onEndGame(); }}
+                      onClick={() => { setShowMenu(false); menuAction.onSelect(); }}
                       className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-[#ff6060] hover:bg-danger/[0.08] transition-colors"
                     >
                       <Flag className="w-4 h-4 flex-shrink-0" />
-                      <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">End Game</span>
+                      <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">{menuAction.label}</span>
                     </button>
                   </div>
                 </>
