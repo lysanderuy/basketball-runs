@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
 import { useFeedRealtime } from "@/hooks/use-feed-realtime";
-import { formatTime } from "@/lib/utils";
+import { formatTime, winnerLabel } from "@/lib/utils";
 import { useGames, type GameData } from "@/hooks/use-game";
 import { useRun } from "@/hooks/use-run";
 import { useSessionUser } from "@/hooks/use-session";
@@ -23,13 +23,6 @@ function gameDuration(startedAt: string | null, endedAt: string | null): string 
   if (!startedAt || !endedAt) return "—";
   const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
   return formatTime(Math.round(ms / 1000));
-}
-
-function winnerLabel(winner: "team_a" | "team_b" | "tie" | null): string {
-  if (winner === "team_a") return "Runs won";
-  if (winner === "team_b") return "Next won";
-  if (winner === "tie") return "Tie game";
-  return "—";
 }
 
 export default function FeedPage() {
