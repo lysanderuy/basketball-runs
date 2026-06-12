@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Home } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
@@ -77,6 +77,12 @@ function ResultsContent() {
   const overflowCount = Math.max(0, upNext.length - 5);
 
   const isHost = !!userId && !!run && userId === run.hostId;
+
+  useEffect(() => {
+    if (loading) return;
+    if (gameId) return;
+    router.replace(`/runs/${code}/feed`);
+  }, [loading, gameId, code, router]);
 
   async function handleNextGame() {
     if (!gameId || !game || game.status !== "completed") {

@@ -219,9 +219,9 @@ export default function GamePage() {
   // clock, manual) update game.status to 'completed'; replace so back from
   // /results doesn't loop here. Applies to all viewers on this page.
   useEffect(() => {
-    if (!details) return;
+    if (!details || !currentGameId) return;
     if (details.game.status !== "completed") return;
-    router.replace(`/runs/${code}/results?gameId=${currentGameId ?? ""}`);
+    router.replace(`/runs/${code}/results?gameId=${currentGameId}`);
   }, [details?.game.status, code, currentGameId, router]);
 
   const game = details?.game ?? null;
