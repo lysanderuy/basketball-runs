@@ -215,14 +215,17 @@ export default function GamePage() {
     return () => clearInterval(interval);
   }, [details, run, isHost, handleEndGame]);
 
-  // Navigate to /results when the game completes. All three triggers (goal,
-  // clock, manual) update game.status to 'completed'; replace so back from
-  // /results doesn't loop here. Applies to all viewers on this page.
+  // On game completion, route by role. Host → independent results page (no
+  // BottomNav). Spectator → lobby focused on this game. router.replace so
+  // back from either target doesn't loop to /game.
   useEffect(() => {
     if (!details || !currentGameId) return;
     if (details.game.status !== "completed") return;
-    router.replace(`/runs/${code}/results?gameId=${currentGameId}`);
-  }, [details?.game.status, code, currentGameId, router]);
+    const target = isHost
+      ? `/runs/${code}/results?gameId=${currentGameId}`
+      : `/runs/${code}/lobby/${currentGameId}`;
+    router.replace(target);
+  }, [details?.game.status, code, currentGameId, isHost, router]);
 
   const game = details?.game ?? null;
   const teamA = details?.players.filter((p) => p.team === "team_a") ?? [];

@@ -81,7 +81,7 @@ function ResultsContent() {
   useEffect(() => {
     if (loading) return;
     if (gameId) return;
-    router.replace(`/runs/${code}/feed`);
+    router.replace(`/runs/${code}/lobby`);
   }, [loading, gameId, code, router]);
 
   async function handleNextGame() {
@@ -276,7 +276,7 @@ function ResultsContent() {
         <div className="bottom-bar">
           <button
             type="button"
-            onClick={() => router.push(`/runs/${code}/feed`)}
+            onClick={() => router.push(`/runs/${code}/lobby`)}
             className="h-[52px] px-[18px] flex-shrink-0 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase flex items-center justify-center gap-1.5 transition-all hover:border-text-muted hover:text-text-primary"
           >
             <Home className="w-3.5 h-3.5" />
