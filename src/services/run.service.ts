@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { runs, games, queueEntries } from "@/db/schema";
-import { eq, count, desc, inArray, and, or } from "drizzle-orm";
+import { runs, games, queueEntries, scoreEvents } from "@/db/schema";
+import { eq, count, desc, inArray, and, or, sql, isNull } from "drizzle-orm";
 import type { CreateRunInput } from "@/validators";
 import type { Run } from "@/types/db";
 
@@ -80,4 +80,57 @@ export async function closeRun(runId: string): Promise<Run> {
     .returning();
   if (!updated) throw new RunNotFoundError();
   return updated;
+}
+
+// Run-level totals for the "Run ended" summary block. Read-only, scoped to
+// one run. Only completed games count — the feature is "once a game ended"
+// and the live game doesn't have a final score yet.
+export type RunStats = {
+  gameCount: number;
+  totalPoints: number;
+  topScorer: { displayName: string; points: number } | null;
+};
+
+export async function getRunStats(runId: string): Promise<RunStats> {
+  const [totals] = await db
+    .select({
+      gameCount: count(games.id),
+      totalPoints: sql<number>`COALESCE(SUM(${games.scoreA} + ${games.scoreB}), 0)`,
+    })
+    .from(games)
+    .where(and(eq(games.runId, runId), eq(games.status, "completed")));
+
+  // Top scorer across the run — sum score events per queue entry, scoped to
+  // completed games in this run. Tie-break by displayName ASC for a stable
+  // single leader when players finish on the same total.
+  const [top] = await db
+    .select({
+      queueEntryId: scoreEvents.queueEntryId,
+      displayName: queueEntries.displayName,
+      points: sql<number>`COALESCE(SUM(${scoreEvents.points}), 0)`,
+    })
+    .from(scoreEvents)
+    .innerJoin(queueEntries, eq(queueEntries.id, scoreEvents.queueEntryId))
+    .innerJoin(games, eq(games.id, scoreEvents.gameId))
+    .where(
+      and(
+        eq(games.runId, runId),
+        eq(games.status, "completed"),
+        isNull(scoreEvents.voidedAt),
+      ),
+    )
+    .groupBy(scoreEvents.queueEntryId, queueEntries.displayName)
+    .orderBy(
+      desc(sql`COALESCE(SUM(${scoreEvents.points}), 0)`),
+      queueEntries.displayName,
+    )
+    .limit(1);
+
+  return {
+    gameCount: Number(totals?.gameCount ?? 0),
+    totalPoints: Number(totals?.totalPoints ?? 0),
+    topScorer: top && Number(top.points) > 0
+      ? { displayName: top.displayName, points: Number(top.points) }
+      : null,
+  };
 }

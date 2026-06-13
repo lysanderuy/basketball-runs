@@ -63,6 +63,10 @@ export function useFeedRealtime(
                 : g,
             ),
           );
+          // Game completion changes the top-scorer cache (a freshly-completed
+          // game appears for the first time). Refetch the aggregated per-run
+          // list rather than mutating it row-by-row.
+          queryClient.invalidateQueries({ queryKey: ["top-scorers", code] });
         },
       )
       .subscribe((status) => {
