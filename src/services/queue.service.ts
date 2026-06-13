@@ -108,3 +108,16 @@ export async function updateQueueEntryStatus(
     .returning();
   return entry ?? null;
 }
+
+export async function updateQueueEntryPaid(
+  runId: string,
+  entryId: string,
+  paid: boolean,
+): Promise<QueueEntry | null> {
+  const [entry] = await db
+    .update(queueEntries)
+    .set({ paid, updatedAt: new Date() })
+    .where(and(eq(queueEntries.id, entryId), eq(queueEntries.runId, runId)))
+    .returning();
+  return entry ?? null;
+}
