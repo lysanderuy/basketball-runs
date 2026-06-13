@@ -107,6 +107,8 @@ export default function QueuePage() {
         run={run}
         loading={loading}
         exitHref={!loading && userId !== null ? "/" : undefined}
+        showEndRun={isHost}
+        liveGameWarning={onCourtCount > 0}
         badge={onCourtCount > 0 ? (
           <div className="flex items-center gap-[5px] font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-live-pulse flex-shrink-0" />

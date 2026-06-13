@@ -4,7 +4,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Home } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
-import { useCloseRunMutation, useRun } from "@/hooks/use-run";
+import { useRun } from "@/hooks/use-run";
 import { useGameDetails } from "@/hooks/use-game";
 import { useQueue } from "@/hooks/use-queue";
 import { useSessionUser } from "@/hooks/use-session";
@@ -52,9 +52,6 @@ function ResultsContent() {
     (!!gameId && detailsQuery.isPending) ||
     queueQuery.isPending;
 
-  const closeRunMutation = useCloseRunMutation(code);
-  const [endingRun, setEndingRun] = useState(false);
-  const [showEndRunConfirm, setShowEndRunConfirm] = useState(false);
   const [upNextExpanded, setUpNextExpanded] = useState(false);
 
   const game = details?.game ?? null;
@@ -141,16 +138,6 @@ function ResultsContent() {
     router.push(`/runs/${code}/team-assignment`);
   }
 
-  async function handleEndRun() {
-    setEndingRun(true);
-    try {
-      await closeRunMutation.mutateAsync();
-      router.push("/history");
-    } catch {
-      setEndingRun(false);
-    }
-  }
-
   const redirecting =
     !gameId || detailsError || (!!game && game.status !== "completed");
 
@@ -177,7 +164,7 @@ function ResultsContent() {
             Game {game.gameNumber}
           </span>
         ) : undefined}
-        menuAction={isHost ? { label: "End Run", onSelect: () => setShowEndRunConfirm(true) } : undefined}
+        showEndRun={isHost}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4 [scrollbar-gutter:stable]">
@@ -378,44 +365,6 @@ function ResultsContent() {
             Next Game
           </button>
         </div>
-      )}
-
-      {showEndRunConfirm && (
-        <>
-          <div
-            className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm"
-            onClick={() => setShowEndRunConfirm(false)}
-          />
-          <div className="fixed inset-0 z-[111] flex items-center justify-center px-5">
-            <div className="w-full max-w-[320px] bg-bg-raised border border-border rounded-xl p-6 flex flex-col gap-5 animate-slide-up">
-              <div className="flex flex-col gap-1.5">
-                <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
-                  End this run?
-                </span>
-                <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
-                  This closes the run for everyone. This can&apos;t be undone.
-                </span>
-              </div>
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowEndRunConfirm(false)}
-                  className="flex-1 h-11 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleEndRun}
-                  disabled={endingRun}
-                  className="flex-1 h-11 rounded-md border border-danger bg-danger/[0.08] text-[#ff6060] font-display text-[13px] font-black tracking-[0.1em] uppercase transition-all hover:bg-danger/[0.16] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {endingRun ? "Ending…" : "End Run"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
       )}
     </div>
   );
