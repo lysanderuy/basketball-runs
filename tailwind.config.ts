@@ -33,9 +33,9 @@ export default {
         warning: "#ff6b35",
         danger: "#ff4040",
         "danger-light": "rgba(255, 64, 64, 0.08)",
-        success: "#22c55e",
-        "success-glow": "rgba(34, 197, 94, 0.10)",
-        "success-border": "rgba(34, 197, 94, 0.35)",
+        success: "#4ade80",
+        "success-glow": "rgba(74, 222, 128, 0.10)",
+        "success-border": "rgba(74, 222, 128, 0.35)",
       },
       fontFamily: {
         display: ["Barlow Condensed", "sans-serif"],
