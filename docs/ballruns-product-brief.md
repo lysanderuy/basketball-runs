@@ -36,13 +36,15 @@ Guests who create an account start tracking their stats from signup onwards. No 
 Run
 ├── id, name, location, date
 ├── format (new 10 / winner stays / host decides)
+├── score goal (17, 21, etc.)
+├── point system (1s & 2s / 2s & 3s)
+├── time limit (optional)
 ├── session code (public, for QR)
-├── queue [ ...players ]
-└── Games
+├── queue [ ...players (each: name, paid?) ]
+└── Games                              (each inherits goal + time limit from the run)
     ├── Game 1
-    │   ├── goal (17, 21, etc.)
-    │   ├── time limit (optional)
-    │   ├── duration (only if time limit was set)
+    │   ├── goal
+    │   ├── duration (only if a time limit was set)
     │   ├── Team A [ ...players ]
     │   ├── Team B [ ...players ]
     │   ├── score A, score B
@@ -57,9 +59,11 @@ Run
 ## Core Features
 
 ### Creating a Run
-- Host signs in, sets a name, optional location, and game format
+- Host signs in, sets a name, optional location, game format, score goal, point system, and an optional time limit
+- These settings apply to every game in the run — there is no per-game setup step; each game inherits the run's goal and time limit
 - Session code is generated, QR is immediately live
 - Formats: new 10 every game / winner stays / host decides after each game
+- Point systems: 1s & 2s, or 2s & 3s — fixes which point values are legal when scoring
 
 ### Queue
 - Players scan QR or enter session code at any point during the run
@@ -90,7 +94,10 @@ Every player shows a games played counter so the host can:
 - Spot who's had multiple runs and deprioritize if needed
 - Make fair calls between early arrivals and latecomers
 
-### QR Accessibility
+### Court Fees
+- A dedicated payment view lists everyone in the run with a paid / unpaid toggle
+- The host marks each player paid as they collect the court fee
+- Paid status is tracked per player and is independent of their queue status — marking someone out or removing them never clears the record that they paid
 - Run lobby: QR front and center
 - During a game: QR accessible behind a share button
 - Results screen: no QR
@@ -115,7 +122,7 @@ Every player shows a games played counter so the host can:
 - Queue auto-updates based on run format
 - Host taps "Start Next Game"
 
-### Run Feed
+### Run Lobby (Feed)
 - Available to anyone who joined the run
 - Live game pinned to the top showing current score
 - All past games listed below in order
@@ -177,7 +184,7 @@ Run Lobby — Player / Spectator
 Bottom Nav (persistent during a run)
 ├── Game
 ├── Queue
-└── Feed
+└── Lobby
 
 Queue Page — Host
 └── On Court / Up Next / Waiting sections
@@ -186,11 +193,12 @@ Queue Page — Host
 Queue Page — Player / Spectator
 └── read-only, see full queue and games played per player
 
-Team Assignment — Host
-└── next 10 pulled, drag to assign, scramble button, confirm
+Payment — Host
+└── roster with paid / unpaid toggle per player for collecting the court fee
 
-Set Game — Host
-└── score goal, time limit or none, start
+Team Assignment — Host
+└── next 10 pulled, drag to assign, scramble button, confirm → game starts
+    (goal and time limit come from the run settings — no per-game setup)
 
 Game — Host View
 └── live score, player names, tap to score, share button (QR), end game
@@ -201,7 +209,7 @@ Game — Spectator / Player View
 Game Results
 └── final score, per-player points, updated queue, Start Next Game
 
-Run Feed
+Run Lobby (Feed)
 └── live game pinned to top, past games listed below, tap to view
 
 Past Game View
@@ -237,6 +245,6 @@ Account (optional)
 4. Live game screen (scoring)
 5. Server-side clock (timed games)
 6. Game results + next game flow
-7. Run feed + past game view
+7. Run lobby (feed) + past game view
 8. Run history
 9. Optional accounts + stat tracking

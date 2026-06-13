@@ -28,7 +28,7 @@ BallRuns keeps the chaos out of pickup basketball. Hosts create a run and share 
 
 ## Key Features
 
-**Session codes.** Share a 6-character `session_code` to bring players into your run — no accounts needed on their end.
+**Session codes.** Share a 6-character `session_code` (shown as `ABC-DEF`) to bring players into your run — no accounts needed on their end.
 
 **Live queue management.** Add players, reorder the queue, mark players out, or pull them back — with changes reflected instantly for everyone via Supabase Realtime.
 
@@ -40,7 +40,11 @@ BallRuns keeps the chaos out of pickup basketball. Hosts create a run and share 
 
 **Run formats.** Supports Winner Stays, New Ten, and Host Decides formats. The DB trigger rotates the queue according to the run's format on game completion.
 
-**Game history.** Every game, team lineup, and point event is stored. Past games are always viewable from the feed.
+**Run settings.** Score goal, point system (1s-and-2s or 2s-and-3s), and an optional time limit are chosen once at run creation and applied to every game in the run.
+
+**Court fees.** The host can mark each player paid from the payment view — tracked per queue entry, independent of their queue status.
+
+**Game history.** Every game, team lineup, and point event is stored. Past games are always viewable from the lobby.
 
 ## Stack
 
@@ -80,24 +84,25 @@ basketball-runs/
 │   │   │   ├── layout.tsx                  Passthrough — no data fetch
 │   │   │   ├── join/                       Guest join flow
 │   │   │   ├── team-assignment/            Assign players to teams before tip-off
-│   │   │   ├── results/                    Post-game summary
+│   │   │   ├── (host)/results/            Post-game summary — host, no bottom nav
 │   │   │   └── (session)/                  Pages with bottom nav
 │   │   │       ├── layout.tsx              BottomNav wrapper
 │   │   │       ├── game/                   Live game management
 │   │   │       ├── queue/                  Queue view
-│   │   │       ├── feed/                   Run feed (game list)
-│   │   │       └── feed/[gameId]/          Single game detail
+│   │   │       ├── payment/                Court-fee confirmation (host)
+│   │   │       ├── lobby/                  Run lobby (game list)
+│   │   │       └── lobby/[gameId]/         Single game detail
 │   │   └── api/                            All HTTP endpoints — thin: auth + Zod + delegate
 │   │       ├── auth/callback/
-│   │       ├── runs/
-│   │       │   └── [code]/
+│   │       ├── runs/                       POST create run · (GET list)
+│   │       │   └── [code]/                 GET run detail
 │   │       │       ├── status/
-│   │       │       ├── games/
+│   │       │       ├── games/              GET list · POST create game
 │   │       │       │   └── [gameId]/       GET detail · PATCH end game
 │   │       │       │       ├── clock/
 │   │       │       │       └── score/
-│   │       │       └── queue/
-│   │       │           └── [entryId]/
+│   │       │       └── queue/              GET queue · POST guest join
+│   │       │           └── [entryId]/      PATCH status or paid toggle
 │   │       └── users/
 │   │           └── me/
 │   ├── components/                         Shared UI components

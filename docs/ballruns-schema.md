@@ -1,11 +1,15 @@
 # BallRuns — Database Behavior
 
-> **Tables, columns, types, defaults, FKs, indexes, and enum values: see [`src/lib/db/schema.ts`](../src/lib/db/schema.ts) — that is the source of truth.**
+> **Tables, columns, types, defaults, FKs, indexes, and enum values: see the
+> Drizzle schema under [`src/db/schema/`](../src/db/schema/) — that is the source
+> of truth.** One file per table (`runs.ts`, `queue-entries.ts`, `games.ts`,
+> `game-players.ts`, `score-events.ts`, `users.ts`), plus `enums.ts` for enum
+> values and `relations.ts` for all `relations()` declarations.
 >
-> This document covers only what schema.ts *can't* encode: triggers, the cron
-> job, RLS policy shape, how scores are derived, the clock model, and the design
-> decisions behind them. If you're looking for "what columns does table X have,"
-> read schema.ts, not this file.
+> This document covers only what the schema files *can't* encode: triggers, the
+> cron job, RLS policy shape, how scores are derived, the clock model, and the
+> design decisions behind them. If you're looking for "what columns does table X
+> have," read the schema files, not this one.
 
 ---
 
@@ -157,6 +161,21 @@ from the list.)
 - **Join**: new entry takes `MAX(position) + 1` under a per-run advisory lock so concurrent joins can't collide.
 - **Rotation**: handled exclusively by `trg_rotate_queue_on_game_complete` (above).
 - **Removal**: set `status = 'removed'` — never DELETE (RESTRICT FKs on game history).
+
+---
+
+## Court Fee Tracking
+
+`queue_entries.paid` (boolean, default `false`) records whether a player has paid
+the run's court fee. It is plain application state — no trigger, no derivation:
+
+- The host toggles it from the payment confirmation view via the queue-entry
+  PATCH route, which accepts **either** a `status` change **or** a `paid` toggle
+  (the two are a discriminated union — a mixed payload is rejected 400).
+- It is orthogonal to `status`: a `marked_out` or `removed` player keeps whatever
+  `paid` value they had, so the host doesn't lose the record of a collected fee.
+- RLS: update is host-of-the-run only (same policy as every other
+  `queue_entries` update), so guests can never mark themselves paid.
 
 ---
 
