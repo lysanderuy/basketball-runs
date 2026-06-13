@@ -88,7 +88,7 @@ export default function PaymentPage() {
 
   return (
     <>
-      <SessionTopbar run={run} loading={loading} exitHref={!loading && userId !== null ? "/" : undefined} showEndRun={isHost} liveGameWarning={queue.onCourt.length > 0} />
+      <SessionTopbar run={run} loading={loading} backHref={`/runs/${code}/lobby`} showEndRun={isHost} liveGameWarning={queue.onCourt.length > 0} />
 
       {/* STATS STRIP */}
       {!loading && isHost && (

@@ -106,7 +106,7 @@ export default function QueuePage() {
       <SessionTopbar
         run={run}
         loading={loading}
-        exitHref={!loading && userId !== null ? "/" : undefined}
+        backHref={`/runs/${code}/lobby`}
         showEndRun={isHost}
         liveGameWarning={onCourtCount > 0}
         badge={onCourtCount > 0 ? (

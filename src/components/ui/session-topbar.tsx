@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Share2, X, Check, Copy, MoreVertical, Flag } from "lucide-react";
+import { Share2, X, Check, Copy, MoreVertical, Flag, ChevronLeft } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCloseRunMutation } from "@/hooks/use-run";
 
@@ -11,13 +11,14 @@ interface SessionTopbarProps {
   run: { name: string; location: string | null; sessionCode: string } | null;
   loading: boolean;
   badge?: React.ReactNode;
+  backHref?: string;
   exitHref?: string;
   menuAction?: { label: string; onSelect: () => void };
   showEndRun?: boolean;
   liveGameWarning?: boolean;
 }
 
-export function SessionTopbar({ run, loading, badge, exitHref, menuAction, showEndRun, liveGameWarning }: SessionTopbarProps) {
+export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAction, showEndRun, liveGameWarning }: SessionTopbarProps) {
   const router = useRouter();
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -142,6 +143,14 @@ export function SessionTopbar({ run, loading, badge, exitHref, menuAction, showE
               className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
             >
               <X className="w-4 h-4" />
+            </Link>
+          )}
+          {backHref && (
+            <Link
+              href={backHref}
+              className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
+            >
+              <ChevronLeft className="w-4 h-4" />
             </Link>
           )}
         </div>
