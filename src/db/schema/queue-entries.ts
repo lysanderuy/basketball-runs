@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, boolean } from "drizzle-orm/pg-core";
 import { runs } from "./runs";
 import { users } from "./users";
 import { queueEntryStatus } from "./enums";
@@ -12,6 +12,7 @@ export const queueEntries = pgTable(
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     displayName: text("display_name").notNull(),
     status: queueEntryStatus("status").notNull().default("waiting"),
+    paid: boolean("paid").notNull().default(false),
     // Integer position for queue ordering — lower = front of queue
     position: integer("position").notNull().default(0),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
