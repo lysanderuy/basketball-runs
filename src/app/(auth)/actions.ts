@@ -30,13 +30,20 @@ export async function signUp(
   const password = formData.get("password") as string;
   const displayName = (formData.get("displayName") as string).trim();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { displayName } },
   });
 
   if (error) return { error: error.message };
+
+  // With email confirmation enabled Supabase returns no session — the user
+  // must verify before signing in, so route them to the check-your-email screen.
+  // The welcome email is sent on confirmation (auth callback), not here.
+  if (!data.session) {
+    redirect(`/signup/confirm?email=${encodeURIComponent(email)}`);
+  }
 
   redirect("/");
 }
