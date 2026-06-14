@@ -161,6 +161,8 @@ Spectator   → guest, read only, no account needed
 
 When a guest creates an account, their previous guest scores are not backfilled. Stats are tracked from signup onwards. The CTA to create an account is shown subtly after a game, once the player has already seen their points — not before.
 
+New hosts confirm their email before signing in: signup sends a confirmation link and lands on a check-your-email screen. Confirming the link verifies the account and triggers a one-time welcome email.
+
 ---
 
 ## Screens
@@ -171,6 +173,9 @@ Landing
 
 Sign Up / Log In
 └── only when creating a run
+
+Check Your Email
+└── after signup — confirmation link sent, verify before sign-in
 
 Create Run
 └── name, location, format → session code generated
