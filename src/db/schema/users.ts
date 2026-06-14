@@ -8,6 +8,7 @@ export const users = pgTable(
     displayName: text("display_name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    welcomeSentAt: timestamp("welcome_sent_at", { withTimezone: true }),
   },
   (t) => [
     index("idx_users_created_at").on(t.createdAt),

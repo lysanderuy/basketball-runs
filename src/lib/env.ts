@@ -11,6 +11,8 @@ const serverSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.string().min(1),
 });
 
 const clientSchema = z.object({
@@ -32,6 +34,8 @@ function readServer(): ServerEnv {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   });
   if (!parsed.success) {
     throw new Error(`Invalid server env: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`);
@@ -68,5 +72,11 @@ export const env = {
   },
   get SUPABASE_SERVICE_ROLE_KEY(): string | undefined {
     return readServer().SUPABASE_SERVICE_ROLE_KEY;
+  },
+  get RESEND_API_KEY(): string {
+    return readServer().RESEND_API_KEY;
+  },
+  get RESEND_FROM_EMAIL(): string {
+    return readServer().RESEND_FROM_EMAIL;
   },
 };
