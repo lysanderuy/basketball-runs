@@ -7,7 +7,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn, deriveInitials } from "@/lib/utils";
 import { useRuns, useCloseRunMutation, type RunSummary } from "@/hooks/use-run";
 import { signOut } from "@/app/(auth)/actions";
-import { Plus, ChevronRight, LogOut, User } from "lucide-react";
+import { Plus, ChevronRight, LogOut } from "lucide-react";
 
 type InitialUser = {
   id: string;
@@ -42,7 +42,6 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
   const { data: runs = [] } = useRuns(signedIn);
 
   const initials = signedIn ? deriveInitials(initialUser.metadata, initialUser.email) : "";
-  const email = signedIn ? initialUser.email : "";
   const visibleRuns: HomeRun[] = signedIn ? mapRuns(runs) : [];
 
   const activeRun = signedIn
@@ -124,29 +123,8 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
                 <DropdownMenu.Content
                   align="end"
                   sideOffset={8}
-                  className="z-50 min-w-[200px] rounded-md border border-border bg-bg-surface shadow-lg outline-none animate-fade-up"
+                  className="z-50 min-w-[180px] rounded-md border border-border bg-bg-surface shadow-lg outline-none animate-fade-up"
                 >
-                  <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border">
-                    <div className="w-[30px] h-[30px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[11px] font-extrabold tracking-[0.04em] text-accent">
-                      {initials}
-                    </div>
-                    <span className="font-body text-[12px] font-medium text-text-muted truncate">
-                      {email}
-                    </span>
-                  </div>
-
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      href="/account"
-                      className="flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
-                    >
-                      <User className="w-3.5 h-3.5 flex-shrink-0" />
-                      Account
-                    </Link>
-                  </DropdownMenu.Item>
-
-                  <DropdownMenu.Separator className="h-px bg-border mx-1" />
-
                   <DropdownMenu.Item asChild>
                     <button
                       onClick={() => signOut()}
