@@ -4,6 +4,7 @@ import type { ApiResponse } from "@/types/api";
 import {
   InvalidEntryIdsError,
   OngoingGameError,
+  RunCompletedError,
   GameNotFoundError,
   GameCompletedError,
   PlayerNotInGameError,
@@ -48,6 +49,9 @@ export function handleApiError(err: unknown): NextResponse<ApiResponse<never>> {
   }
   if (err instanceof OngoingGameError) {
     return apiError("ONGOING_GAME", err.message, 409);
+  }
+  if (err instanceof RunCompletedError) {
+    return apiError("RUN_COMPLETED", err.message, 409);
   }
   if (err instanceof DuplicateScoreError) {
     return apiError("DUPLICATE_SCORE", err.message, 409);

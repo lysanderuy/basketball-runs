@@ -20,6 +20,15 @@ export class OngoingGameError extends Error {
   }
 }
 
+// Thrown when a game-creation attempt targets a run that has already been
+// closed. Maps to 409 — a completed run is terminal; no new games.
+export class RunCompletedError extends Error {
+  constructor() {
+    super("Run is already completed");
+    this.name = "RunCompletedError";
+  }
+}
+
 // Thrown when a gameId does not exist or does not belong to the target run.
 // The route catches this and returns 404 so a host cannot act on a game in a
 // run they do not own (the URL only carries the run code, not the game's run).
@@ -87,60 +96,6 @@ export async function getGamesByRunId(runId: string): Promise<Game[]> {
     .orderBy(desc(games.gameNumber));
 }
 
-// One entry per completed game in the run: the single top scorer (or null if
-// nobody scored). Used to render the compact "Top: <name> — N pts" line on
-// each past-game card on the feed, in a single round trip instead of N+1
-// game-detail fetches. Tie-break by displayName ASC for a stable order — the
-// feed card surfaces one name, not all tied players.
-export type GameTopScorer = {
-  gameId: string;
-  topScorer: { queueEntryId: string; displayName: string; points: number } | null;
-};
-
-export async function getTopScorersByRunId(runId: string): Promise<GameTopScorer[]> {
-  const rows = await db
-    .select({
-      gameId: gamePlayers.gameId,
-      queueEntryId: gamePlayers.queueEntryId,
-      displayName: queueEntries.displayName,
-      points: sql<number>`COALESCE(SUM(${scoreEvents.points}), 0)`,
-    })
-    .from(gamePlayers)
-    .innerJoin(queueEntries, eq(queueEntries.id, gamePlayers.queueEntryId))
-    .leftJoin(
-      scoreEvents,
-      and(
-        eq(scoreEvents.queueEntryId, gamePlayers.queueEntryId),
-        eq(scoreEvents.gameId, gamePlayers.gameId),
-        isNull(scoreEvents.voidedAt),
-      ),
-    )
-    .innerJoin(games, eq(games.id, gamePlayers.gameId))
-    .where(and(eq(games.runId, runId), eq(games.status, "completed")))
-    .groupBy(gamePlayers.gameId, gamePlayers.queueEntryId, queueEntries.displayName)
-    .orderBy(
-      gamePlayers.gameId,
-      desc(sql`COALESCE(SUM(${scoreEvents.points}), 0)`),
-      queueEntries.displayName,
-    );
-
-  const byGame = new Map<string, GameTopScorer>();
-  for (const r of rows) {
-    const existing = byGame.get(r.gameId);
-    const points = Number(r.points);
-    if (!existing) {
-      byGame.set(r.gameId, {
-        gameId: r.gameId,
-        topScorer:
-          points > 0
-            ? { queueEntryId: r.queueEntryId, displayName: r.displayName, points }
-            : null,
-      });
-    }
-  }
-  return Array.from(byGame.values());
-}
-
 export async function createGame(
   runId: string,
   teamAEntryIds: string[],
@@ -148,6 +103,7 @@ export async function createGame(
 ): Promise<Game> {
   const [run] = await db.select().from(runs).where(eq(runs.id, runId)).limit(1);
   if (!run) throw new RunNotFoundError();
+  if (run.status === "completed") throw new RunCompletedError();
 
   // Verify all submitted entry IDs actually belong to this run before acquiring
   // any locks. The FK only enforces queue_entry_id → queue_entries.id, not run

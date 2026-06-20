@@ -170,15 +170,3 @@ export function useConfirmTeamsMutation(code: string) {
     },
   });
 }
-
-export type GameTopScorer = {
-  gameId: string;
-  topScorer: { queueEntryId: string; displayName: string; points: number } | null;
-};
-
-export function useTopScorers(code: string) {
-  return useQuery({
-    queryKey: ["top-scorers", code],
-    queryFn: () => apiGet<GameTopScorer[]>(`/api/runs/${code}/games/top-scorers`),
-  });
-}
