@@ -4,6 +4,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Home } from "lucide-react";
 import { SessionTopbar } from "@/components/ui/session-topbar";
+import { GameBreakdown } from "@/components/ui/game-breakdown";
 import { useRun } from "@/hooks/use-run";
 import { useGameDetails } from "@/hooks/use-game";
 import { useQueue } from "@/hooks/use-queue";
@@ -164,7 +165,7 @@ function ResultsContent() {
             Game {game.gameNumber}
           </span>
         ) : undefined}
-        showEndRun={isHost}
+        showEndRun={isHost && run?.status !== "completed"}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4 [scrollbar-gutter:stable]">
@@ -231,116 +232,71 @@ function ResultsContent() {
           </div>
         </div>
 
-        <div className="flex items-center px-5 pt-5 pb-2.5">
-          <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Breakdown</span>
-        </div>
-
-        <div className="px-5 grid grid-cols-2 gap-2.5">
-
-          <div className="flex flex-col gap-[5px]">
-            <div className={`flex items-center justify-between pb-1.5 mb-0.5 border-b font-display text-[11px] font-extrabold tracking-[0.14em] uppercase ${isTeamAWinner ? "text-accent-dim border-border-accent" : "text-text-muted border-border"}`}>
-              Runs
-              <span className={`text-[13px] font-black ${isTeamAWinner ? "text-accent" : "text-text-muted"}`}>
-                {game?.scoreA ?? 0}
-              </span>
-            </div>
-            {teamA.map((player, i) => (
-              <div
-                key={player.queueEntryId}
-                className={`bg-bg-surface border rounded-md px-2.5 h-9 flex items-center justify-between gap-1.5 ${i === 0 && player.points > 0 ? "border-border-accent" : "border-border"}`}
-              >
-                <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
-                  {player.displayName}
-                </span>
-                <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 && player.points > 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
-                  {player.points}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-[5px]">
-            <div className={`flex items-center justify-between pb-1.5 mb-0.5 border-b font-display text-[11px] font-extrabold tracking-[0.14em] uppercase ${isTeamBWinner ? "text-accent-dim border-border-accent" : "text-text-muted border-border"}`}>
-              Next
-              <span className={`text-[13px] font-black ${isTeamBWinner ? "text-accent" : "text-text-muted"}`}>
-                {game?.scoreB ?? 0}
-              </span>
-            </div>
-            {teamB.map((player, i) => (
-              <div
-                key={player.queueEntryId}
-                className={`bg-bg-surface border rounded-md px-2.5 h-9 flex items-center justify-between gap-1.5 ${i === 0 && player.points > 0 ? "border-border-accent" : "border-border"}`}
-              >
-                <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
-                  {player.displayName}
-                </span>
-                <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 && player.points > 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
-                  {player.points}
-                </span>
-              </div>
-            ))}
-          </div>
-
-        </div>
+        <GameBreakdown
+          players={details?.players ?? []}
+          scoreA={game?.scoreA ?? 0}
+          scoreB={game?.scoreB ?? 0}
+          winner={game?.winner ?? null}
+        />
 
         {upNext.length > 0 && (
           <div className="px-5 mt-4">
-          <button
-            type="button"
-            onClick={() => setUpNextExpanded((v) => !v)}
-            className="w-full bg-bg-surface border border-border rounded-md px-3.5 py-2.5 min-h-[44px] text-left transition-colors active:bg-bg-hover"
-          >
-            {upNextExpanded ? (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between gap-2.5">
-                  <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
-                    Up next
-                  </span>
-                  <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
-                </div>
-                <div className="flex gap-3 pt-1">
-                  {upNextColumns.map((column, ci) => (
-                    <div key={ci} className="flex-1 min-w-0 flex flex-col">
-                      {column.map((entry, i) => (
-                        <div key={entry.id} className="flex items-center gap-2 py-1.5 min-w-0">
-                          <span className="font-display text-[11px] font-black text-text-muted w-4 text-right flex-shrink-0">
-                            {ci * upNextMid + i + 1}
-                          </span>
-                          <span className="font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary truncate">
-                            {entry.displayName}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2.5">
-                <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
-                  Up next
-                </span>
-                <div className="relative flex-1 min-w-0 overflow-hidden">
-                  <span className="block font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
-                    {upNext.slice(0, visibleNameCount).map((e) => e.displayName).join(", ")}
-                  </span>
-                  <div ref={upNextMeasureRef} aria-hidden className="invisible absolute top-0 left-0 flex w-max whitespace-nowrap">
-                    {upNext.map((e, i) => (
-                      <span key={e.id} className="font-display text-[13px] font-bold tracking-[0.04em] uppercase">
-                        {e.displayName}{i < upNext.length - 1 ? ", " : ""}
-                      </span>
+            <button
+              type="button"
+              onClick={() => setUpNextExpanded((v) => !v)}
+              className="w-full bg-bg-surface border border-border rounded-md px-3.5 py-2.5 min-h-[44px] text-left transition-colors active:bg-bg-hover"
+            >
+              {upNextExpanded ? (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2.5">
+                    <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+                      Up next
+                    </span>
+                    <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    {upNextColumns.map((column, ci) => (
+                      <div key={ci} className="flex-1 min-w-0 flex flex-col">
+                        {column.map((entry, i) => (
+                          <div key={entry.id} className="flex items-center gap-2 py-1.5 min-w-0">
+                            <span className="font-display text-[11px] font-black text-text-muted w-4 text-right flex-shrink-0">
+                              {ci * upNextMid + i + 1}
+                            </span>
+                            <span className="font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary truncate">
+                              {entry.displayName}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>
-                {hiddenCount > 0 && (
-                  <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
-                    +{hiddenCount}
+              ) : (
+                <div className="flex items-center gap-2.5">
+                  <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+                    Up next
                   </span>
-                )}
-                <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
-              </div>
-            )}
-          </button>
+                  <div className="relative flex-1 min-w-0 overflow-hidden">
+                    <span className="block font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
+                      {upNext.slice(0, visibleNameCount).map((e) => e.displayName).join(", ")}
+                    </span>
+                    <div ref={upNextMeasureRef} aria-hidden className="invisible absolute top-0 left-0 flex w-max whitespace-nowrap">
+                      {upNext.map((e, i) => (
+                        <span key={e.id} className="font-display text-[13px] font-bold tracking-[0.04em] uppercase">
+                          {e.displayName}{i < upNext.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {hiddenCount > 0 && (
+                    <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
+                      +{hiddenCount}
+                    </span>
+                  )}
+                  <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+                </div>
+              )}
+            </button>
           </div>
         )}
 
