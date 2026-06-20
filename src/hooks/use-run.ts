@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost, apiPatch } from "@/lib/api/client";
 import type { RunWire } from "@/types/api";
 
@@ -49,7 +49,29 @@ export function useCreateRunMutation() {
 }
 
 export function useCloseRunMutation(code: string) {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => apiPatch(`/api/runs/${code}/status`, { status: "completed" }),
+    mutationFn: () => apiPatch<RunWire>(`/api/runs/${code}/status`, { status: "completed" }),
+    onSuccess: (updated) => {
+      // Close-run flips runs.status from "active" to "completed" — the feed
+      // shows the run summary block only in that state, so the cache has to
+      // be told the run changed and the stats are now valid.
+      queryClient.setQueryData<RunWire>(["run", code], updated);
+      queryClient.invalidateQueries({ queryKey: ["run-stats", code] });
+    },
+  });
+}
+
+export type RunStats = {
+  gameCount: number;
+  totalPoints: number;
+  topScorer: { displayName: string; points: number } | null;
+};
+
+export function useRunStats(code: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["run-stats", code],
+    queryFn: () => apiGet<RunStats>(`/api/runs/${code}/stats`),
+    enabled,
   });
 }

@@ -87,6 +87,60 @@ export async function getGamesByRunId(runId: string): Promise<Game[]> {
     .orderBy(desc(games.gameNumber));
 }
 
+// One entry per completed game in the run: the single top scorer (or null if
+// nobody scored). Used to render the compact "Top: <name> — N pts" line on
+// each past-game card on the feed, in a single round trip instead of N+1
+// game-detail fetches. Tie-break by displayName ASC for a stable order — the
+// feed card surfaces one name, not all tied players.
+export type GameTopScorer = {
+  gameId: string;
+  topScorer: { queueEntryId: string; displayName: string; points: number } | null;
+};
+
+export async function getTopScorersByRunId(runId: string): Promise<GameTopScorer[]> {
+  const rows = await db
+    .select({
+      gameId: gamePlayers.gameId,
+      queueEntryId: gamePlayers.queueEntryId,
+      displayName: queueEntries.displayName,
+      points: sql<number>`COALESCE(SUM(${scoreEvents.points}), 0)`,
+    })
+    .from(gamePlayers)
+    .innerJoin(queueEntries, eq(queueEntries.id, gamePlayers.queueEntryId))
+    .leftJoin(
+      scoreEvents,
+      and(
+        eq(scoreEvents.queueEntryId, gamePlayers.queueEntryId),
+        eq(scoreEvents.gameId, gamePlayers.gameId),
+        isNull(scoreEvents.voidedAt),
+      ),
+    )
+    .innerJoin(games, eq(games.id, gamePlayers.gameId))
+    .where(and(eq(games.runId, runId), eq(games.status, "completed")))
+    .groupBy(gamePlayers.gameId, gamePlayers.queueEntryId, queueEntries.displayName)
+    .orderBy(
+      gamePlayers.gameId,
+      desc(sql`COALESCE(SUM(${scoreEvents.points}), 0)`),
+      queueEntries.displayName,
+    );
+
+  const byGame = new Map<string, GameTopScorer>();
+  for (const r of rows) {
+    const existing = byGame.get(r.gameId);
+    const points = Number(r.points);
+    if (!existing) {
+      byGame.set(r.gameId, {
+        gameId: r.gameId,
+        topScorer:
+          points > 0
+            ? { queueEntryId: r.queueEntryId, displayName: r.displayName, points }
+            : null,
+      });
+    }
+  }
+  return Array.from(byGame.values());
+}
+
 export async function createGame(
   runId: string,
   teamAEntryIds: string[],
@@ -198,7 +252,14 @@ export async function getGameWithDetails(gameId: string): Promise<GameWithDetail
         ),
       )
       .where(eq(gamePlayers.gameId, gameId))
-      .groupBy(gamePlayers.queueEntryId, queueEntries.displayName, gamePlayers.team),
+      .groupBy(gamePlayers.queueEntryId, queueEntries.displayName, gamePlayers.team)
+      // Sort at the SQL layer so the leader is always first. Tie-break by
+      // displayName ASC for a stable order when two players finish on the
+      // same points total.
+      .orderBy(
+        desc(sql`COALESCE(SUM(${scoreEvents.points}), 0)`),
+        queueEntries.displayName,
+      ),
 
     db
       .select({
