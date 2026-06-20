@@ -8,7 +8,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useCloseRunMutation } from "@/hooks/use-run";
 
 interface SessionTopbarProps {
-  run: { name: string; location: string | null; sessionCode: string } | null;
+  run: { name: string; location: string | null; sessionCode: string; status: "lobby" | "active" | "completed" } | null;
   loading: boolean;
   badge?: React.ReactNode;
   backHref?: string;
@@ -34,6 +34,10 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
   }, []);
 
   const joinUrl = origin ? `${origin}/runs/${run?.sessionCode}/join` : "";
+
+  // A completed run can't be joined (the queue rejects it), so the join/share
+  // invite is hidden once the run is over — for everyone, not just the host.
+  const isCompleted = run?.status === "completed";
 
   async function handleCopy() {
     if (!joinUrl) return;
@@ -90,14 +94,16 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                     onClick={() => setShowMenu(false)}
                   />
                   <div className="absolute right-0 top-full mt-1.5 z-[201] bg-bg-raised border border-border rounded-lg overflow-hidden shadow-lg min-w-[160px]">
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); setShowShare(true); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-                    >
-                      <Share2 className="w-4 h-4 flex-shrink-0" />
-                      <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">Share</span>
-                    </button>
+                    {!isCompleted && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowMenu(false); setShowShare(true); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                      >
+                        <Share2 className="w-4 h-4 flex-shrink-0" />
+                        <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">Share</span>
+                      </button>
+                    )}
                     {menuAction && (
                       <>
                         <div className="h-px bg-border mx-3" />
@@ -129,13 +135,15 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
               )}
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowShare(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
+            !isCompleted && (
+              <button
+                type="button"
+                onClick={() => setShowShare(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-sm border border-border bg-bg-surface text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+            )
           )}
           {exitHref && (
             <Link
