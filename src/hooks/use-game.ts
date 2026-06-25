@@ -154,13 +154,20 @@ export function useEndGameMutation(code: string, gameId: string) {
       );
       return updated;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games", code] });
+    },
   });
 }
 
 export function useConfirmTeamsMutation(code: string) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { teamA: string[]; teamB: string[] }) =>
       apiPost<GameData>(`/api/runs/${code}/games`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games", code] });
+    },
   });
 }
 

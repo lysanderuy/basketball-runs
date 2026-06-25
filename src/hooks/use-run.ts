@@ -64,8 +64,9 @@ export function useCloseRunMutation(code: string) {
 
 export type RunStats = {
   gameCount: number;
-  totalPoints: number;
-  topScorer: { displayName: string; points: number } | null;
+  playerCount: number;
+  startedAt: string;
+  topScorers: { displayName: string; points: number }[];
 };
 
 export function useRunStats(code: string, enabled: boolean = true) {

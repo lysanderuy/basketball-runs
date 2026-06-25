@@ -192,7 +192,7 @@ export default function HistoryPage() {
                       </div>
                     )}
                     <button
-                      onClick={() => router.push(`/runs/${run.sessionCode}/feed`)}
+                      onClick={() => router.push(`/runs/${run.sessionCode}/lobby`)}
                       className="w-full flex gap-0 rounded-md border border-border bg-bg-surface hover:bg-bg-hover text-left transition-colors overflow-hidden animate-fade-up"
                       style={{ animationDelay: `${i * 0.04}s` }}
                     >

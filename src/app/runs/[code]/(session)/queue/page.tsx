@@ -56,6 +56,7 @@ export default function QueuePage() {
   const adding = addPlayerMutation.isPending;
 
   const isHost = !!userId && !!run && userId === run.hostId;
+  const canManageRun = isHost && run?.status !== "completed";
 
   const onCourtCount = queue.onCourt.length;
   const waitingCount = queue.waiting.filter((e) => e.status === "waiting").length;
@@ -106,7 +107,9 @@ export default function QueuePage() {
       <SessionTopbar
         run={run}
         loading={loading}
-        exitHref={!loading && userId !== null ? "/" : undefined}
+        backHref={`/runs/${code}/lobby`}
+        showEndRun={canManageRun}
+        liveGameWarning={onCourtCount > 0}
         badge={onCourtCount > 0 ? (
           <div className="flex items-center gap-[5px] font-display text-[12px] font-bold tracking-[0.1em] uppercase text-accent bg-accent-glow border border-border-accent px-2.5 py-1 rounded-[4px]">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-live-pulse flex-shrink-0" />
@@ -209,7 +212,7 @@ export default function QueuePage() {
                     <span className="font-display text-[12px] font-semibold text-text-muted whitespace-nowrap">
                       {entry.gamesPlayed} {entry.gamesPlayed === 1 ? "game" : "games"}
                     </span>
-                    {isHost && !mutating.has(entry.id) && entry.status === "marked_out" && (
+                    {canManageRun && !mutating.has(entry.id) && entry.status === "marked_out" && (
                       <button
                         type="button"
                         onClick={() => handleStatusUpdate(entry.id, "waiting")}
@@ -218,7 +221,7 @@ export default function QueuePage() {
                         <RotateCcw className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {isHost && !mutating.has(entry.id) && (
+                    {canManageRun && !mutating.has(entry.id) && (
                       <button
                         type="button"
                         onClick={(e) => openCtxMenu(e, entry)}
@@ -248,7 +251,7 @@ export default function QueuePage() {
       </div>
 
       {/* FAB — host only */}
-      {isHost && !showAddForm && (
+      {canManageRun && !showAddForm && (
         <button
           type="button"
           onClick={() => setShowAddForm(true)}
@@ -259,7 +262,7 @@ export default function QueuePage() {
       )}
 
       {/* ADD PLAYER MODAL */}
-      {showAddForm && isHost && (
+      {showAddForm && canManageRun && (
         <>
           <div
             className="fixed inset-0 z-[98] bg-black/60 backdrop-blur-sm"

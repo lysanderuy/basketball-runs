@@ -28,7 +28,7 @@ BallRuns keeps the chaos out of pickup basketball. Hosts create a run and share 
 
 ## Key Features
 
-**Session codes.** Share a 6-character `session_code` to bring players into your run — no accounts needed on their end.
+**Session codes.** Share a 6-character `session_code` (shown as `ABC-DEF`) to bring players into your run — no accounts needed on their end.
 
 **Live queue management.** Add players, reorder the queue, mark players out, or pull them back — with changes reflected instantly for everyone via Supabase Realtime.
 
@@ -40,7 +40,11 @@ BallRuns keeps the chaos out of pickup basketball. Hosts create a run and share 
 
 **Run formats.** Supports Winner Stays, New Ten, and Host Decides formats. The DB trigger rotates the queue according to the run's format on game completion.
 
-**Game history.** Every game, team lineup, and point event is stored. Past games are always viewable from the feed.
+**Run settings.** Score goal, point system (1s-and-2s or 2s-and-3s), and an optional time limit are chosen once at run creation and applied to every game in the run.
+
+**Court fees.** The host can mark each player paid from the payment view — tracked per queue entry, independent of their queue status.
+
+**Game history.** Every game, team lineup, and point event is stored. Past games are always viewable from the lobby.
 
 ## Stack
 
@@ -50,6 +54,7 @@ BallRuns keeps the chaos out of pickup basketball. Hosts create a run and share 
 | Language | TypeScript — strict mode |
 | Database | Supabase (PostgreSQL) + Supabase Auth + Supabase Realtime |
 | Auth | `@supabase/ssr` |
+| Email | Resend + React Email — transactional (welcome) |
 | ORM | Drizzle ORM |
 | Migrations | `node-pg-migrate` (JS builder API) |
 | Validation | Zod |
@@ -70,7 +75,7 @@ basketball-runs/
 │   │   ├── page.tsx                        Landing
 │   │   ├── (auth)/                         Login, signup — route group (URLs: /login, /signup)
 │   │   │   ├── login/
-│   │   │   ├── signup/
+│   │   │   ├── signup/                     incl. signup/confirm (check-your-email screen)
 │   │   │   └── actions.ts                  "use server" — Supabase auth SDK direct (the only exception)
 │   │   ├── (protected)/                    Auth-guarded — middleware redirects guests
 │   │   │   ├── create-run/
@@ -80,24 +85,25 @@ basketball-runs/
 │   │   │   ├── layout.tsx                  Passthrough — no data fetch
 │   │   │   ├── join/                       Guest join flow
 │   │   │   ├── team-assignment/            Assign players to teams before tip-off
-│   │   │   ├── results/                    Post-game summary
+│   │   │   ├── (host)/results/            Post-game summary — host, no bottom nav
 │   │   │   └── (session)/                  Pages with bottom nav
 │   │   │       ├── layout.tsx              BottomNav wrapper
 │   │   │       ├── game/                   Live game management
 │   │   │       ├── queue/                  Queue view
-│   │   │       ├── feed/                   Run feed (game list)
-│   │   │       └── feed/[gameId]/          Single game detail
+│   │   │       ├── payment/                Court-fee confirmation (host)
+│   │   │       ├── lobby/                  Run lobby (game list)
+│   │   │       └── lobby/[gameId]/         Single game detail
 │   │   └── api/                            All HTTP endpoints — thin: auth + Zod + delegate
-│   │       ├── auth/callback/
-│   │       ├── runs/
-│   │       │   └── [code]/
+│   │       ├── auth/                        callback (PKCE) + confirm (email token-hash verify)
+│   │       ├── runs/                       POST create run · (GET list)
+│   │       │   └── [code]/                 GET run detail
 │   │       │       ├── status/
-│   │       │       ├── games/
+│   │       │       ├── games/              GET list · POST create game
 │   │       │       │   └── [gameId]/       GET detail · PATCH end game
 │   │       │       │       ├── clock/
 │   │       │       │       └── score/
-│   │       │       └── queue/
-│   │       │           └── [entryId]/
+│   │       │       └── queue/              GET queue · POST guest join
+│   │       │           └── [entryId]/      PATCH status or paid toggle
 │   │       └── users/
 │   │           └── me/
 │   ├── components/                         Shared UI components
@@ -108,8 +114,10 @@ basketball-runs/
 │   │   ├── env.ts                          Zod-validated env vars (server only, lazy)
 │   │   ├── query/                          QueryClient setup
 │   │   ├── supabase/                       Browser, server, and middleware clients
+│   │   ├── resend/                          Resend client (lazy singleton)
 │   │   └── utils.ts                        Pure utility helpers
 │   ├── services/                           Business logic + DB access (*.service.ts)
+│   ├── emails/                             React Email templates (welcome)
 │   ├── validators/                         Zod schemas (*.validator.ts) — input source of truth
 │   └── types/
 │       ├── api.ts                          ApiResponse<T> envelope
@@ -189,7 +197,7 @@ These invariants are enforced in the database and must be respected by applicati
    npm install
    ```
 
-2. Copy `.env.example` to `.env` and fill in your Supabase credentials (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DIRECT_URL`)
+2. Copy `.env.example` to `.env` and fill in your Supabase credentials (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DIRECT_URL`) and your Resend credentials (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`) for transactional email
 
 3. Apply the database migrations
    ```bash
@@ -245,6 +253,7 @@ npm run db:migrate:down
 | Player | Guest (optional) | Join queue, view live score |
 | Spectator | Guest | Read-only |
 
+- New hosts confirm their email before first sign-in. Signup lands on a check-your-email screen (`/signup/confirm`); the confirmation link is verified by `/api/auth/confirm` (token-hash) or `/api/auth/callback` (PKCE), which then fire a one-time welcome email via Resend (`src/services/email.service.ts`), gated by `users.welcome_sent_at` so it sends exactly once.
 - `src/lib/supabase/proxy.ts` is the auth enforcement layer — it refreshes the session on every request and redirects unauthenticated users away from `/create-run`, `/history`, `/account`.
 - `(protected)/layout.tsx` is a pure passthrough — do not add auth checks here.
 - In API routes, authenticate with `createClient()` from `src/lib/supabase/server` + `auth.getUser()`. Pass the resolved `userId` to the service. The service scopes every query to that `userId` (or to a `runId` that the route has already resolved to be owned by `userId`).

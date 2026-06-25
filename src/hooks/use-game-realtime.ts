@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 // Note: this hook and useQueueRealtime both subscribe to tables scoped to the
-// same run/game. Today only one is mounted at a time (queue/game/feed are
+// same run/game. Today only one is mounted at a time (queue/game/lobby are
 // different routes), but mounting both on the same page will create duplicate
 // channels. Don't co-locate.
 

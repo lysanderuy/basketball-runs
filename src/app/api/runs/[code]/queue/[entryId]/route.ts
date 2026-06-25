@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { queueEntryPatchSchema } from "@/validators";
 import { getRunByCode } from "@/services/run.service";
-import { updateQueueEntryStatus } from "@/services/queue.service";
+import { updateQueueEntryStatus, updateQueueEntryPaid } from "@/services/queue.service";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api/response";
 
 // PATCH /api/runs/[code]/queue/[entryId]
-// Accepts { status } — host only.
+// Accepts { status } or { paid } — host only.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ code: string; entryId: string }> },
@@ -35,7 +35,10 @@ export async function PATCH(
     return apiError("VALIDATION", "Invalid request payload", 400, result.error.flatten());
   }
 
-  const entry = await updateQueueEntryStatus(run.id, entryId, result.data.status);
+  const entry =
+    "status" in result.data
+      ? await updateQueueEntryStatus(run.id, entryId, result.data.status)
+      : await updateQueueEntryPaid(run.id, entryId, result.data.paid);
 
   if (!entry) {
     return apiError("NOT_FOUND", "Queue entry not found", 404);

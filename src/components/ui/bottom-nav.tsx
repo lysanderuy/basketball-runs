@@ -2,36 +2,43 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Home, List, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRun } from "@/hooks/use-run";
+import { useSessionUser } from "@/hooks/use-session";
 
 export function BottomNav() {
   const pathname = usePathname();
   const match = pathname.match(/^\/runs\/([^/]+)/);
   const code = match?.[1] ?? "";
 
+  const { data: run } = useRun(code);
+  const { data: userId } = useSessionUser();
+  const isHost = !!userId && !!run && userId === run.hostId;
+
   const tabs = [
     {
-      href: `/runs/${code}/feed`,
-      label: "Feed",
-      active: pathname.includes("/feed"),
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-          <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-        </svg>
-      ),
+      href: `/runs/${code}/lobby`,
+      label: "Lobby",
+      active: pathname.includes("/lobby"),
+      icon: <Home className="w-5 h-5" />,
     },
     {
       href: `/runs/${code}/queue`,
       label: "Queue",
       active: pathname.includes("/queue"),
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-          <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-        </svg>
-      ),
+      icon: <List className="w-5 h-5" />,
     },
+    ...(isHost
+      ? [
+          {
+            href: `/runs/${code}/payment`,
+            label: "Payment",
+            active: pathname.includes("/payment"),
+            icon: <Wallet className="w-5 h-5" />,
+          },
+        ]
+      : []),
   ];
 
   return (

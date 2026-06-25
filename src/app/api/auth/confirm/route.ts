@@ -1,20 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
 import { welcomeUserOnce } from "@/services/email.service";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+// Token-hash verification endpoint for emailed auth links (signup confirmation,
+// recovery, magic link). Supabase's default email template hits its own
+// /auth/v1/verify and skips our PKCE callback, so this route is what the
+// "Confirm signup" template must point at for the welcome email to fire.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/";
 
-  // Open-redirect guard: only follow same-origin paths. A leading "//" would
-  // be parsed by the browser as a different host (e.g. //evil.com → evil.com),
-  // so it has to be rejected alongside full URLs.
+  // Open-redirect guard: only follow same-origin paths.
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
-  if (code) {
+  if (tokenHash && type) {
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     if (!error) {
       const user = data.user;
       if (user?.email) {
@@ -32,5 +36,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=callback_error`);
+  return NextResponse.redirect(`${origin}/login?error=confirm_error`);
 }

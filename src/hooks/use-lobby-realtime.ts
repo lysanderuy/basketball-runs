@@ -8,15 +8,15 @@ import type { GameData, GameDetails } from "@/hooks/use-game";
 
 // Note: this hook and useQueueRealtime/useGameRealtime both subscribe to tables
 // scoped to the same run/game. Today only one is mounted at a time
-// (queue/game/feed are different routes), but mounting both on the same page
+// (queue/game/lobby are different routes), but mounting both on the same page
 // will create duplicate channels. Don't co-locate.
 
-// Feed uses setQueryData for the games channel (no refetch — avoids the
+// Lobby uses setQueryData for the games channel (no refetch — avoids the
 // concurrent-fetch race where a slower older fetch resolves after a newer one
 // and overwrites state). The score_events fetch lives here too, along with
 // its stale-response guard — splitting them apart re-introduces the bug.
 
-export function useFeedRealtime(
+export function useLobbyRealtime(
   runId: string | null,
   code: string,
   activeGameId: string | null,
@@ -33,7 +33,7 @@ export function useFeedRealtime(
     if (!runId) return;
     const supabase = createClient();
     const channel = supabase
-      .channel(`feed-${runId}`)
+      .channel(`lobby-${runId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "games", filter: `run_id=eq.${runId}` },
@@ -71,7 +71,7 @@ export function useFeedRealtime(
       )
       .subscribe((status) => {
         if (status !== "SUBSCRIBED" && status !== "CLOSED") {
-          console.error(`Realtime channel feed-${runId} failed:`, status);
+          console.error(`Realtime channel lobby-${runId} failed:`, status);
         }
       });
     return () => {
@@ -88,7 +88,7 @@ export function useFeedRealtime(
     let gen = 0;
     const supabase = createClient();
     const channel = supabase
-      .channel(`feed-scores-${gameId}`)
+      .channel(`lobby-scores-${gameId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "score_events", filter: `game_id=eq.${gameId}` },
@@ -106,7 +106,7 @@ export function useFeedRealtime(
       )
       .subscribe((status) => {
         if (status !== "SUBSCRIBED" && status !== "CLOSED") {
-          console.error(`Realtime channel feed-scores-${gameId} failed:`, status);
+          console.error(`Realtime channel lobby-scores-${gameId} failed:`, status);
         }
       });
     return () => {

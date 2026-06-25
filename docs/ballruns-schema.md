@@ -1,11 +1,15 @@
 # BallRuns — Database Behavior
 
-> **Tables, columns, types, defaults, FKs, indexes, and enum values: see [`src/lib/db/schema.ts`](../src/lib/db/schema.ts) — that is the source of truth.**
+> **Tables, columns, types, defaults, FKs, indexes, and enum values: see the
+> Drizzle schema under [`src/db/schema/`](../src/db/schema/) — that is the source
+> of truth.** One file per table (`runs.ts`, `queue-entries.ts`, `games.ts`,
+> `game-players.ts`, `score-events.ts`, `users.ts`), plus `enums.ts` for enum
+> values and `relations.ts` for all `relations()` declarations.
 >
-> This document covers only what schema.ts *can't* encode: triggers, the cron
-> job, RLS policy shape, how scores are derived, the clock model, and the design
-> decisions behind them. If you're looking for "what columns does table X have,"
-> read schema.ts, not this file.
+> This document covers only what the schema files *can't* encode: triggers, the
+> cron job, RLS policy shape, how scores are derived, the clock model, and the
+> design decisions behind them. If you're looking for "what columns does table X
+> have," read the schema files, not this one.
 
 ---
 
@@ -160,6 +164,39 @@ from the list.)
 
 ---
 
+## Court Fee Tracking
+
+`queue_entries.paid` (boolean, default `false`) records whether a player has paid
+the run's court fee. It is plain application state — no trigger, no derivation:
+
+- The host toggles it from the payment confirmation view via the queue-entry
+  PATCH route, which accepts **either** a `status` change **or** a `paid` toggle
+  (the two are a discriminated union — a mixed payload is rejected 400).
+- It is orthogonal to `status`: a `marked_out` or `removed` player keeps whatever
+  `paid` value they had, so the host doesn't lose the record of a collected fee.
+- RLS: update is host-of-the-run only (same policy as every other
+  `queue_entries` update), so guests can never mark themselves paid.
+
+---
+
+## Welcome Email (One-Time)
+
+`users.welcome_sent_at` (timestamptz, nullable) gates the transactional welcome
+email so it sends exactly once per account, even under concurrent email-link hits:
+
+- On the first verified signup confirmation — either `/api/auth/callback` (PKCE)
+  or `/api/auth/confirm` (token-hash) — the email service runs an atomic claim:
+  `UPDATE users SET welcome_sent_at = now() WHERE id = ? AND welcome_sent_at IS NULL RETURNING id`.
+  Only the row returned proceeds to send; concurrent verifications (link
+  prefetchers, double taps) lose the claim and skip — no read-then-write gap.
+- The claim commits **before** the Resend send, so a failed send is a missed
+  welcome email (the safe failure), never a duplicate.
+- Plain server state written by the email service via Drizzle — no trigger, no
+  derivation. Recovery and magic-link verifications never re-trigger it because
+  the column is already set.
+
+---
+
 ## Clock Architecture
 
 The clock never ticks on any device. The server stores timestamps; every client
@@ -216,3 +253,4 @@ trigger-driven `queue_entries.position`.
 | Clock | Server timestamps + client formula, idempotent pause/resume | Zero drift; survives reconnect; re-pause/-resume can't corrupt paused time |
 | Undo | Soft void via `voided_at` | Non-destructive; trigger recounts and the score self-corrects |
 | Hard-delete prevention | `ON DELETE RESTRICT` on game-history FKs | No orphaned game records; removals are logical (`status`), never physical |
+| Welcome email | One-time via `users.welcome_sent_at` atomic claim | Exactly-once send under concurrent confirmation clicks; claim-before-send favors a missed email over a duplicate |

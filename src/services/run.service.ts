@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { runs, games, queueEntries, scoreEvents } from "@/db/schema";
+import { runs, games, queueEntries, scoreEvents, gamePlayers } from "@/db/schema";
 import { eq, count, desc, inArray, and, or, sql, isNull } from "drizzle-orm";
 import type { CreateRunInput } from "@/validators";
 import type { Run } from "@/types/db";
@@ -87,25 +87,26 @@ export async function closeRun(runId: string): Promise<Run> {
 // and the live game doesn't have a final score yet.
 export type RunStats = {
   gameCount: number;
-  totalPoints: number;
-  topScorer: { displayName: string; points: number } | null;
+  playerCount: number;
+  startedAt: string;
+  topScorers: { displayName: string; points: number }[];
 };
 
-export async function getRunStats(runId: string): Promise<RunStats> {
+export async function getRunStats(runId: string, startedAt: Date): Promise<RunStats> {
   const [totals] = await db
     .select({
-      gameCount: count(games.id),
-      totalPoints: sql<number>`COALESCE(SUM(${games.scoreA} + ${games.scoreB}), 0)`,
+      gameCount: sql<number>`COUNT(DISTINCT ${games.id})`,
+      playerCount: sql<number>`COUNT(DISTINCT ${gamePlayers.queueEntryId})`,
     })
     .from(games)
+    .leftJoin(gamePlayers, eq(gamePlayers.gameId, games.id))
     .where(and(eq(games.runId, runId), eq(games.status, "completed")));
 
-  // Top scorer across the run — sum score events per queue entry, scoped to
-  // completed games in this run. Tie-break by displayName ASC for a stable
-  // single leader when players finish on the same total.
-  const [top] = await db
+  // Top scorers across the run — sum score events per queue entry, scoped to
+  // completed games in this run. Tie-break by displayName ASC for stable
+  // ordering when players finish on the same total. Top 3 for the leaderboard.
+  const top = await db
     .select({
-      queueEntryId: scoreEvents.queueEntryId,
       displayName: queueEntries.displayName,
       points: sql<number>`COALESCE(SUM(${scoreEvents.points}), 0)`,
     })
@@ -124,13 +125,14 @@ export async function getRunStats(runId: string): Promise<RunStats> {
       desc(sql`COALESCE(SUM(${scoreEvents.points}), 0)`),
       queueEntries.displayName,
     )
-    .limit(1);
+    .limit(3);
 
   return {
     gameCount: Number(totals?.gameCount ?? 0),
-    totalPoints: Number(totals?.totalPoints ?? 0),
-    topScorer: top && Number(top.points) > 0
-      ? { displayName: top.displayName, points: Number(top.points) }
-      : null,
+    playerCount: Number(totals?.playerCount ?? 0),
+    startedAt: startedAt.toISOString(),
+    topScorers: top
+      .filter((t) => Number(t.points) > 0)
+      .map((t) => ({ displayName: t.displayName, points: Number(t.points) })),
   };
 }

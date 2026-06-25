@@ -20,6 +20,15 @@ export class OngoingGameError extends Error {
   }
 }
 
+// Thrown when a game-creation attempt targets a run that has already been
+// closed. Maps to 409 — a completed run is terminal; no new games.
+export class RunCompletedError extends Error {
+  constructor() {
+    super("Run is already completed");
+    this.name = "RunCompletedError";
+  }
+}
+
 // Thrown when a gameId does not exist or does not belong to the target run.
 // The route catches this and returns 404 so a host cannot act on a game in a
 // run they do not own (the URL only carries the run code, not the game's run).
@@ -148,6 +157,7 @@ export async function createGame(
 ): Promise<Game> {
   const [run] = await db.select().from(runs).where(eq(runs.id, runId)).limit(1);
   if (!run) throw new RunNotFoundError();
+  if (run.status === "completed") throw new RunCompletedError();
 
   // Verify all submitted entry IDs actually belong to this run before acquiring
   // any locks. The FK only enforces queue_entry_id → queue_entries.id, not run
