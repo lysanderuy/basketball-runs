@@ -22,7 +22,7 @@ function GoogleIcon() {
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+  const next = searchParams.get("next") || "/dashboard";
   const [state, formAction, isPending] = useActionState(
     async (_prev: { error: string } | null, formData: FormData) => signIn(_prev, formData),
     null,
