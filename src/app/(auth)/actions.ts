@@ -12,7 +12,7 @@ export async function signIn(
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const next = (formData.get("next") as string) || "/";
+  const next = (formData.get("next") as string) || "/dashboard";
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -66,7 +66,7 @@ export async function signUp(
     redirect(`/signup/confirm?email=${encodeURIComponent(email)}`);
   }
 
-  redirect("/");
+  redirect("/dashboard");
 }
 
 export async function signOut(): Promise<void> {
