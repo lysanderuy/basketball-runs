@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { Suspense, useActionState, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signUp } from "@/app/(auth)/actions";
+import { useInvite } from "@/hooks/use-invite";
 
 function GoogleIcon() {
   return (
@@ -18,13 +20,7 @@ function GoogleIcon() {
   );
 }
 
-export default function SignupPage() {
-  const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string } | null, formData: FormData) => signUp(_prev, formData),
-    null,
-  );
-  const [showPassword, setShowPassword] = useState(false);
-
+function SignupChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell px-5 overflow-y-auto">
       <div className="pt-4 flex items-center">
@@ -46,7 +42,78 @@ export default function SignupPage() {
         </Link>
         <div className="w-12 h-0.5 bg-accent rounded-sm mt-2" />
       </div>
+      {children}
+    </div>
+  );
+}
 
+function InviteRequiredState() {
+  return (
+    <div className="flex-1 flex flex-col justify-end pb-12">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1 animate-fade-up">
+          <h2 className="font-display text-[20px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
+            Invite Required
+          </h2>
+          <p className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
+            Invitation only.
+          </p>
+        </div>
+        <p className="font-body text-[14px] text-text-secondary animate-fade-up" style={{ animationDelay: "0.06s" }}>
+          Account creation is invite-only. Open the invitation link you were sent to
+          create your account.
+        </p>
+        <div
+          className="flex items-center justify-center gap-1.5 pt-1 animate-fade-up"
+          style={{ animationDelay: "0.1s" }}
+        >
+          <span className="font-body text-[13px] text-text-muted">
+            Already have an account?
+          </span>
+          <Link
+            href="/login"
+            className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
+          >
+            Sign in
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SignupForm() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("invite");
+  const { data, isLoading, isError } = useInvite(token);
+  const [state, formAction, isPending] = useActionState(
+    async (_prev: { error: string } | null, formData: FormData) => signUp(_prev, formData),
+    null,
+  );
+  const [showPassword, setShowPassword] = useState(false);
+
+  if (!token || isError) {
+    return (
+      <SignupChrome>
+        <InviteRequiredState />
+      </SignupChrome>
+    );
+  }
+
+  if (isLoading || !data) {
+    return (
+      <SignupChrome>
+        <div className="flex-1 flex flex-col justify-end pb-12">
+          <div className="h-40 animate-pulse rounded-md bg-bg-surface" />
+        </div>
+      </SignupChrome>
+    );
+  }
+
+  const inviteEmail = data.email;
+
+  return (
+    <SignupChrome>
       <div className="flex-1 flex flex-col justify-end pb-12">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1 animate-fade-up">
@@ -81,6 +148,8 @@ export default function SignupPage() {
           </div>
 
           <form action={formAction} className="flex flex-col gap-4">
+            <input type="hidden" name="invite" value={token} />
+
             <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.14s" }}>
               <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Display Name
@@ -112,6 +181,8 @@ export default function SignupPage() {
                 type="email"
                 autoComplete="email"
                 required
+                readOnly
+                defaultValue={inviteEmail}
                 className={cn(
                   "w-full h-13 bg-bg-surface border border-border rounded-md",
                   "px-3.5",
@@ -190,6 +261,14 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
-    </div>
+    </SignupChrome>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="app-shell" />}>
+      <SignupForm />
+    </Suspense>
   );
 }
