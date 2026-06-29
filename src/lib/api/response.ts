@@ -12,6 +12,11 @@ import {
   InvalidPointsError,
 } from "@/services/game.service";
 import { RunNotFoundError } from "@/services/run.service";
+import {
+  InviteNotFoundError,
+  InviteUsedError,
+  InviteExpiredError,
+} from "@/services/invite.service";
 
 export function apiSuccess<T>(data: T, status = 200): NextResponse<ApiResponse<T>> {
   return NextResponse.json({ ok: true, data }, { status });
@@ -58,6 +63,15 @@ export function handleApiError(err: unknown): NextResponse<ApiResponse<never>> {
   }
   if (err instanceof InvalidPointsError) {
     return apiError("INVALID_POINTS", err.message, 400);
+  }
+  if (err instanceof InviteNotFoundError) {
+    return apiError("INVITE_NOT_FOUND", err.message, 404);
+  }
+  if (err instanceof InviteExpiredError) {
+    return apiError("INVITE_EXPIRED", err.message, 410);
+  }
+  if (err instanceof InviteUsedError) {
+    return apiError("INVITE_USED", err.message, 410);
   }
   // Anything unrecognized is an internal failure — log it server-side and
   // return a generic message so internals never leak to the client.

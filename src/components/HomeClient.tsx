@@ -270,33 +270,37 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
                 </button>
               </form>
             </div>
-
-            <div
-              className="flex items-center gap-2.5 animate-fade-up"
-              style={{ animationDelay: "0.16s" }}
-            >
-              <div className="flex-1 h-px bg-border" />
-              <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-                or
-              </span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
           </>
 
-          <button
-            onClick={handleStartRun}
-            className={cn(
-              "w-full h-14 rounded-md animate-fade-up",
-              "bg-accent text-bg",
-              "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
-              "flex items-center justify-center gap-2",
-              "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
-            )}
-            style={{ animationDelay: "0.2s" }}
-          >
-            <Plus className="w-4 h-4" />
-            Start a Run
-          </button>
+          {signedIn && (
+            <>
+              <div
+                className="flex items-center gap-2.5 animate-fade-up"
+                style={{ animationDelay: "0.16s" }}
+              >
+                <div className="flex-1 h-px bg-border" />
+                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  or
+                </span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <button
+                onClick={handleStartRun}
+                className={cn(
+                  "w-full h-14 rounded-md animate-fade-up",
+                  "bg-accent text-bg",
+                  "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
+                  "flex items-center justify-center gap-2",
+                  "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
+                )}
+                style={{ animationDelay: "0.2s" }}
+              >
+                <Plus className="w-4 h-4" />
+                Start a Run
+              </button>
+            </>
+          )}
 
           {!signedIn && (
             <div
