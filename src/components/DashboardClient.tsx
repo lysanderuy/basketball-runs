@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn, deriveInitials } from "@/lib/utils";
 import { useRuns, useCloseRunMutation, type RunSummary } from "@/hooks/use-run";
+import { useHostStatus, useRequestHostMutation } from "@/hooks/use-host-request";
 import { signOut } from "@/app/(auth)/actions";
-import { Plus, ChevronRight, LogOut, User } from "lucide-react";
+import { Plus, ChevronRight, LogOut, User, Clock, Sparkles } from "lucide-react";
 
 type InitialUser = {
   id: string;
@@ -34,9 +35,48 @@ function mapRuns(runs: RunSummary[]): DashboardRun[] {
 
 export default function DashboardClient({ initialUser }: DashboardClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const intent = searchParams.get("intent") === "host";
+
   const [showConflictModal, setShowConflictModal] = useState(false);
+  const [hostPromptDismissed, setHostPromptDismissed] = useState(false);
 
   const { data: runs = [] } = useRuns(true);
+  const { data: hostStatus } = useHostStatus();
+  const requestHost = useRequestHostMutation();
+
+  const isApproved = hostStatus === "approved";
+  const isPending = hostStatus === "pending";
+  const isDenied = hostStatus === "denied";
+  const isUnapproved = hostStatus === "none" || hostStatus === "denied";
+
+  const dismissKey = `ballruns:host-prompt-dismissed:${initialUser.id}`;
+
+  useEffect(() => {
+    if (intent) {
+      try {
+        localStorage.removeItem(dismissKey);
+      } catch {
+        // localStorage may be unavailable — fall back to the in-memory default.
+      }
+      setHostPromptDismissed(false);
+      return;
+    }
+    try {
+      setHostPromptDismissed(localStorage.getItem(dismissKey) === "true");
+    } catch {
+      // localStorage may be unavailable — keep the prompt visible.
+    }
+  }, [intent, dismissKey]);
+
+  function handleDismissHostPrompt() {
+    setHostPromptDismissed(true);
+    try {
+      localStorage.setItem(dismissKey, "true");
+    } catch {
+      // Persisting is best-effort; the prompt stays dismissed for this session regardless.
+    }
+  }
 
   const initials = deriveInitials(initialUser.metadata, initialUser.email);
   const email = initialUser.email;
@@ -100,6 +140,18 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                     {email}
                   </span>
                 </div>
+
+                {isUnapproved && (
+                  <DropdownMenu.Item asChild>
+                    <button
+                      onClick={() => requestHost.mutate()}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+                      Become a Host
+                    </button>
+                  </DropdownMenu.Item>
+                )}
 
                 <DropdownMenu.Item asChild>
                   <Link
@@ -190,31 +242,98 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
             )}
           </div>
 
-          <div
-            className="flex items-center gap-2.5 animate-fade-up"
-            style={{ animationDelay: "0.16s" }}
-          >
-            <div className="flex-1 h-px bg-border" />
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-              or
-            </span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
+          {visibleRuns.length > 0 && (
+            <div
+              className="flex items-center gap-2.5 animate-fade-up"
+              style={{ animationDelay: "0.16s" }}
+            >
+              <div className="flex-1 h-px bg-border" />
+              <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                or
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          )}
 
-          <button
-            onClick={handleStartRun}
-            className={cn(
-              "w-full h-14 rounded-md animate-fade-up",
-              "bg-accent text-bg",
-              "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
-              "flex items-center justify-center gap-2",
-              "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
-            )}
-            style={{ animationDelay: "0.2s" }}
-          >
-            <Plus className="w-4 h-4" />
-            Start a Run
-          </button>
+          {isApproved && (
+            <button
+              onClick={handleStartRun}
+              className={cn(
+                "w-full h-14 rounded-md animate-fade-up",
+                "bg-accent text-bg",
+                "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
+                "flex items-center justify-center gap-2",
+                "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
+              )}
+              style={{ animationDelay: "0.2s" }}
+            >
+              <Plus className="w-4 h-4" />
+              Start a Run
+            </button>
+          )}
+
+          {isPending && (
+            <div
+              className="w-full h-14 rounded-md border border-border bg-bg-surface flex items-center justify-center gap-2 animate-fade-up"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <Clock className="w-4 h-4 text-text-muted" />
+              <span className="font-display text-[15px] font-extrabold tracking-[0.1em] uppercase text-text-muted">
+                Host Request Pending
+              </span>
+            </div>
+          )}
+
+          {isUnapproved && !hostPromptDismissed && (
+            <div
+              className="w-full flex flex-col gap-4 px-[18px] py-5 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04] animate-fade-up"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <div className="flex flex-col gap-1.5">
+                <span className="font-display text-[20px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
+                  Run Your Own Court
+                </span>
+                <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                  {isDenied
+                    ? "Your last request wasn't approved. Add some detail and try again."
+                    : "Hosting is approval-gated. Send a quick request and we'll get you set up."}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <button
+                  onClick={() => requestHost.mutate()}
+                  disabled={requestHost.isPending}
+                  className="w-full h-12 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[15px] font-extrabold tracking-[0.1em] uppercase transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98] disabled:opacity-50"
+                >
+                  {requestHost.isPending
+                    ? "Sending…"
+                    : isDenied
+                      ? "Request Again"
+                      : "Request to Host"}
+                </button>
+                <button
+                  onClick={handleDismissHostPrompt}
+                  className="w-full h-11 flex items-center justify-center rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:bg-bg-hover hover:text-text-primary"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isUnapproved && hostPromptDismissed && (
+            <button
+              onClick={() => requestHost.mutate()}
+              disabled={requestHost.isPending}
+              className="w-full text-center font-body text-[13px] text-text-muted transition-colors hover:text-text-secondary animate-fade-up disabled:opacity-50"
+              style={{ animationDelay: "0.2s" }}
+            >
+              Want to run your own court?{" "}
+              <span className="font-semibold text-text-secondary underline underline-offset-2 decoration-border">
+                Request to host
+              </span>
+            </button>
+          )}
 
         </div>
       </div>
