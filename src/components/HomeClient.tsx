@@ -107,16 +107,12 @@ function SectionLabel({ n, label, tone = "muted" }: { n: string; label: string; 
   );
 }
 
-// Small BallRuns logo mark — accent square with a condensed "R".
+// BallRuns logo mark — accent chip with a basketball glyph (source: /public/logo.svg).
 function LogoMark({ className }: { className?: string }) {
   return (
-    <span
-      className={cn(
-        "grid place-items-center rounded-[7px] bg-accent text-bg font-display font-black leading-none",
-        className,
-      )}
-    >
-      BR
+    <span className={cn("grid place-items-center rounded-[7px] bg-accent", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.svg" alt="" aria-hidden="true" className="h-[67%] w-[67%]" />
     </span>
   );
 }
@@ -241,11 +237,8 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
       {/* ───────── HEADER ───────── */}
       <header className="sticky top-0 z-50 border-b border-border/70 bg-bg/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 lg:px-10">
-          <Link href="/" className="flex items-center gap-2.5">
-            <LogoMark className="h-8 w-8 text-[14px]" />
-            <span className="font-display text-[20px] font-black uppercase tracking-[0.02em] text-text-primary leading-none">
-              BallRuns
-            </span>
+          <Link href="/" aria-label="BallRuns home" className="flex items-center">
+            <LogoMark className="h-9 w-9" />
           </Link>
 
           <nav className="hidden items-center gap-9 md:flex">
@@ -546,7 +539,7 @@ export default function HomeClient({ initialUser }: HomeClientProps) {
           <div className="flex flex-col gap-10 md:flex-row md:justify-between">
             <div className="flex max-w-[18rem] flex-col gap-3">
               <div className="flex items-center gap-2.5">
-                <LogoMark className="h-7 w-7 text-[12px]" />
+                <LogoMark className="h-7 w-7" />
                 <span className="font-display text-[20px] font-black uppercase leading-none tracking-[0.02em] text-text-primary">
                   BallRuns
                 </span>
