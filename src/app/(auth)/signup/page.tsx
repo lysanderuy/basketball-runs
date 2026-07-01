@@ -7,7 +7,6 @@ import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signUp } from "@/app/(auth)/actions";
-import { useInvite } from "@/hooks/use-invite";
 
 function GoogleIcon() {
   return (
@@ -47,70 +46,21 @@ function SignupChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
-function InviteRequiredState() {
+export default function SignupPage() {
   return (
-    <div className="flex-1 flex flex-col justify-end pb-12">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1 animate-fade-up">
-          <h2 className="font-display text-[20px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
-            Invite Required
-          </h2>
-          <p className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
-            Invitation only.
-          </p>
-        </div>
-        <p className="font-body text-[14px] text-text-secondary animate-fade-up" style={{ animationDelay: "0.06s" }}>
-          Account creation is invite-only. Open the invitation link you were sent to
-          create your account.
-        </p>
-        <div
-          className="flex items-center justify-center gap-1.5 pt-1 animate-fade-up"
-          style={{ animationDelay: "0.1s" }}
-        >
-          <span className="font-body text-[13px] text-text-muted">
-            Already have an account?
-          </span>
-          <Link
-            href="/login"
-            className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
-          >
-            Sign in
-          </Link>
-        </div>
-      </div>
-    </div>
+    <Suspense fallback={<SignupChrome>{null}</SignupChrome>}>
+      <SignupForm />
+    </Suspense>
   );
 }
 
 function SignupForm() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("invite");
-  const { data, isLoading, isError } = useInvite(token);
   const [state, formAction, isPending] = useActionState(
     async (_prev: { error: string } | null, formData: FormData) => signUp(_prev, formData),
     null,
   );
   const [showPassword, setShowPassword] = useState(false);
-
-  if (!token || isError) {
-    return (
-      <SignupChrome>
-        <InviteRequiredState />
-      </SignupChrome>
-    );
-  }
-
-  if (isLoading || !data) {
-    return (
-      <SignupChrome>
-        <div className="flex-1 flex flex-col justify-end pb-12">
-          <div className="h-40 animate-pulse rounded-md bg-bg-surface" />
-        </div>
-      </SignupChrome>
-    );
-  }
-
-  const inviteEmail = data.email;
+  const intent = useSearchParams().get("intent") ?? "";
 
   return (
     <SignupChrome>
@@ -121,7 +71,7 @@ function SignupForm() {
               Create Account
             </h2>
             <p className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
-              Get in the queue.
+              Run your own court.
             </p>
           </div>
 
@@ -148,8 +98,7 @@ function SignupForm() {
           </div>
 
           <form action={formAction} className="flex flex-col gap-4">
-            <input type="hidden" name="invite" value={token} />
-
+            <input type="hidden" name="intent" value={intent} />
             <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.14s" }}>
               <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Display Name
@@ -181,8 +130,6 @@ function SignupForm() {
                 type="email"
                 autoComplete="email"
                 required
-                readOnly
-                defaultValue={inviteEmail}
                 className={cn(
                   "w-full h-13 bg-bg-surface border border-border rounded-md",
                   "px-3.5",
@@ -262,13 +209,5 @@ function SignupForm() {
         </div>
       </div>
     </SignupChrome>
-  );
-}
-
-export default function SignupPage() {
-  return (
-    <Suspense fallback={<div className="app-shell" />}>
-      <SignupForm />
-    </Suspense>
   );
 }
