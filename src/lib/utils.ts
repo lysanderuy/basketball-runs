@@ -25,6 +25,7 @@ export function deriveInitials(
   email: string | undefined,
 ): string {
   const name =
+    (metadata?.displayName as string | undefined) ||
     (metadata?.display_name as string | undefined) ||
     (metadata?.full_name as string | undefined) ||
     "";
