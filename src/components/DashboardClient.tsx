@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn, deriveInitials } from "@/lib/utils";
+import JoinByCodeForm from "@/components/ui/JoinByCodeForm";
 import { useRuns, useCloseRunMutation, type RunSummary } from "@/hooks/use-run";
 import { useHostStatus, useRequestHostMutation } from "@/hooks/use-host-request";
 import { signOut } from "@/app/(auth)/actions";
@@ -20,7 +21,10 @@ export type DashboardClientProps = {
   initialUser: InitialUser;
 };
 
-type DashboardRun = Pick<RunSummary, "id" | "name" | "location" | "status" | "sessionCode" | "gameCount">;
+type DashboardRun = Pick<
+  RunSummary,
+  "id" | "name" | "location" | "status" | "sessionCode" | "gameCount" | "isHost"
+>;
 
 function mapRuns(runs: RunSummary[]): DashboardRun[] {
   return runs.map((r) => ({
@@ -30,6 +34,7 @@ function mapRuns(runs: RunSummary[]): DashboardRun[] {
     status: r.status,
     sessionCode: r.sessionCode,
     gameCount: r.gameCount,
+    isHost: r.isHost,
   }));
 }
 
@@ -185,97 +190,85 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
       </div>
 
       {/* ACTIONS */}
-      <div className="flex-1 flex flex-col justify-end pb-12">
+      <div className="flex-1 flex flex-col pt-9 pb-10">
         <div className="flex flex-col gap-5">
 
-          <div
-            className="flex flex-col gap-2 mb-12 animate-fade-up"
-            style={{ animationDelay: "0.1s" }}
-          >
-            {activeRun && (
-              <button
-                onClick={() => router.push(`/runs/${activeRun.sessionCode}/lobby`)}
-                className="w-full flex flex-col gap-3 px-[18px] py-4 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04] hover:bg-accent/[0.08] transition-colors text-left"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-[7px] h-[7px] rounded-full bg-[#3ddc84] flex-shrink-0 animate-live-pulse" />
-                    <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent-dim">
-                      Live
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-                      {activeRun.gameCount} {activeRun.gameCount === 1 ? "Game" : "Games"}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-text-muted" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-display text-[22px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
-                    {activeRun.name}
-                  </span>
-                  {activeRun.location && (
-                    <span className="font-body text-[12px] font-medium text-text-muted uppercase">
-                      {activeRun.location}
-                    </span>
-                  )}
-                </div>
-              </button>
-            )}
-
-            {visibleRuns.length > 0 && (
-              <button
-                onClick={() => router.push("/history")}
-                className="w-full flex items-center justify-between px-[18px] py-3 rounded-md border border-border bg-bg-surface hover:bg-bg-hover transition-colors text-left"
-              >
-                <div className="flex flex-col gap-[5px]">
-                  <span className="font-display text-[18px] font-extrabold tracking-[0.02em] uppercase text-text-secondary leading-none">
-                    Your Runs
-                  </span>
-                  <span className="font-display text-[12px] font-semibold tracking-[0.1em] uppercase text-text-muted">
-                    {completedCount} completed
-                  </span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
-              </button>
-            )}
-          </div>
-
-          {visibleRuns.length > 0 && (
-            <div
-              className="flex items-center gap-2.5 animate-fade-up"
-              style={{ animationDelay: "0.16s" }}
+          {activeRun && (
+            <button
+              onClick={() => router.push(`/runs/${activeRun.sessionCode}/lobby`)}
+              className="w-full flex flex-col gap-3 px-[18px] py-4 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04] hover:bg-accent/[0.08] transition-colors text-left animate-fade-up"
+              style={{ animationDelay: "0.1s" }}
             >
-              <div className="flex-1 h-px bg-border" />
-              <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
-                or
-              </span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-[7px] h-[7px] rounded-full bg-[#3ddc84] flex-shrink-0 animate-live-pulse" />
+                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent-dim">
+                    {activeRun.isHost ? "Live" : "Live · You're in"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                    {activeRun.gameCount} {activeRun.gameCount === 1 ? "Game" : "Games"}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-text-muted" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-display text-[22px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
+                  {activeRun.name}
+                </span>
+                {activeRun.location && (
+                  <span className="font-body text-[12px] font-medium text-text-muted uppercase">
+                    {activeRun.location}
+                  </span>
+                )}
+              </div>
+            </button>
           )}
 
+          <div
+            className="flex flex-col gap-2.5 animate-fade-up"
+            style={{ animationDelay: "0.14s" }}
+          >
+            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+              {activeRun ? "Join another run" : "Join a run"}
+            </span>
+            <JoinByCodeForm />
+          </div>
+
           {isApproved && (
-            <button
-              onClick={handleStartRun}
-              className={cn(
-                "w-full h-14 rounded-md animate-fade-up",
-                "bg-accent text-bg",
-                "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
-                "flex items-center justify-center gap-2",
-                "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
-              )}
-              style={{ animationDelay: "0.2s" }}
-            >
-              <Plus className="w-4 h-4" />
-              Start a Run
-            </button>
+            <>
+              <div
+                className="flex items-center gap-2.5 animate-fade-up"
+                style={{ animationDelay: "0.18s" }}
+              >
+                <div className="flex-1 h-px bg-border" />
+                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  or
+                </span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <button
+                onClick={handleStartRun}
+                className={cn(
+                  "w-full h-14 rounded-md animate-fade-up",
+                  "bg-accent text-bg",
+                  "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
+                  "flex items-center justify-center gap-2",
+                  "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
+                )}
+                style={{ animationDelay: "0.22s" }}
+              >
+                <Plus className="w-4 h-4" />
+                Start a Run
+              </button>
+            </>
           )}
 
           {isPending && (
             <div
               className="w-full h-14 rounded-md border border-border bg-bg-surface flex items-center justify-center gap-2 animate-fade-up"
-              style={{ animationDelay: "0.2s" }}
+              style={{ animationDelay: "0.22s" }}
             >
               <Clock className="w-4 h-4 text-text-muted" />
               <span className="font-display text-[15px] font-extrabold tracking-[0.1em] uppercase text-text-muted">
@@ -284,11 +277,32 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
             </div>
           )}
 
-          {isUnapproved && !hostPromptDismissed && (
-            <div
-              className="w-full flex flex-col gap-4 px-[18px] py-5 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04] animate-fade-up"
-              style={{ animationDelay: "0.2s" }}
+          {completedCount > 0 && (
+            <button
+              onClick={() => router.push("/history")}
+              className="w-full flex items-center justify-between px-[18px] py-3 rounded-md border border-border bg-bg-surface hover:bg-bg-hover transition-colors text-left animate-fade-up"
+              style={{ animationDelay: "0.26s" }}
             >
+              <div className="flex flex-col gap-[5px]">
+                <span className="font-display text-[18px] font-extrabold tracking-[0.02em] uppercase text-text-secondary leading-none">
+                  Runs You've Played
+                </span>
+                <span className="font-display text-[12px] font-semibold tracking-[0.1em] uppercase text-text-muted">
+                  {completedCount} completed
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
+            </button>
+          )}
+        </div>
+
+        {/* Become a host — demoted footer nudge */}
+        {isUnapproved && !hostPromptDismissed && (
+          <div
+            className="mt-auto pt-8 w-full flex flex-col gap-4 animate-fade-up"
+            style={{ animationDelay: "0.3s" }}
+          >
+            <div className="w-full flex flex-col gap-4 px-[18px] py-5 rounded-md border border-border-accent border-l-[3px] border-l-accent bg-accent/[0.04]">
               <div className="flex flex-col gap-1.5">
                 <span className="font-display text-[20px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
                   Run Your Own Court
@@ -319,23 +333,22 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {isUnapproved && hostPromptDismissed && (
-            <button
-              onClick={() => requestHost.mutate()}
-              disabled={requestHost.isPending}
-              className="w-full text-center font-body text-[13px] text-text-muted transition-colors hover:text-text-secondary animate-fade-up disabled:opacity-50"
-              style={{ animationDelay: "0.2s" }}
-            >
-              Want to run your own court?{" "}
-              <span className="font-semibold text-text-secondary underline underline-offset-2 decoration-border">
-                Request to host
-              </span>
-            </button>
-          )}
-
-        </div>
+        {isUnapproved && hostPromptDismissed && (
+          <button
+            onClick={() => requestHost.mutate()}
+            disabled={requestHost.isPending}
+            className="mt-auto pt-8 w-full text-center font-body text-[13px] text-text-muted transition-colors hover:text-text-secondary animate-fade-up disabled:opacity-50"
+            style={{ animationDelay: "0.3s" }}
+          >
+            Want to run your own court?{" "}
+            <span className="font-semibold text-text-secondary underline underline-offset-2 decoration-border">
+              Request to host
+            </span>
+          </button>
+        )}
       </div>
 
       {showConflictModal && activeRun && (
