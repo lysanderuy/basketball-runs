@@ -285,7 +285,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
             >
               <div className="flex flex-col gap-[5px]">
                 <span className="font-display text-[18px] font-extrabold tracking-[0.02em] uppercase text-text-secondary leading-none">
-                  Runs You've Played
+                  Runs You&apos;ve Played
                 </span>
                 <span className="font-display text-[12px] font-semibold tracking-[0.1em] uppercase text-text-muted">
                   {completedCount} completed
