@@ -147,7 +147,7 @@ function ResultsContent() {
       <div className="app-shell h-dvh overflow-hidden">
         <SessionTopbar run={null} loading={true} />
         <div className="flex-1 flex items-center justify-center">
-          <div className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted animate-pulse">
+          <div className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted animate-pulse">
             Loading…
           </div>
         </div>
@@ -172,10 +172,10 @@ function ResultsContent() {
 
         <div className="relative flex flex-col items-center gap-1 pt-6 pb-5 flex-shrink-0">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[260px] h-[140px] bg-accent-glow rounded-full blur-[48px] pointer-events-none" />
-          <span className="relative font-display text-[11px] font-bold tracking-[0.16em] uppercase text-accent-dim">
+          <span className="relative font-display text-[12px] font-bold tracking-[0.16em] uppercase text-accent-dim">
             Winner
           </span>
-          <span className="relative font-display text-[38px] font-black tracking-[0.02em] uppercase text-text-primary leading-none">
+          <span className="relative font-display text-[36px] font-black tracking-[0.02em] uppercase text-text-primary leading-none">
             {winnerLabel(game?.winner ?? null)}
           </span>
         </div>
@@ -184,7 +184,7 @@ function ResultsContent() {
           <div className={`absolute top-0 bottom-0 w-[3px] bg-accent ${isTeamBWinner ? "right-0 rounded-r-sm" : "left-0 rounded-l-sm"}`} />
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <div className="flex flex-col items-center gap-0.5">
-              <span className={`font-display text-[11px] font-bold tracking-[0.14em] uppercase ${isTeamAWinner ? "text-accent-dim" : "text-text-muted"}`}>
+              <span className={`font-display text-[12px] font-bold tracking-[0.14em] uppercase ${isTeamAWinner ? "text-accent-dim" : "text-text-muted"}`}>
                 Runs
               </span>
               <span
@@ -196,7 +196,7 @@ function ResultsContent() {
             </div>
             <span className="font-display text-[24px] font-black text-text-muted tracking-[-0.04em] pb-2">—</span>
             <div className="flex flex-col items-center gap-0.5">
-              <span className={`font-display text-[11px] font-bold tracking-[0.14em] uppercase ${isTeamBWinner ? "text-accent-dim" : "text-text-muted"}`}>
+              <span className={`font-display text-[12px] font-bold tracking-[0.14em] uppercase ${isTeamBWinner ? "text-accent-dim" : "text-text-muted"}`}>
                 Next
               </span>
               <span
@@ -213,19 +213,19 @@ function ResultsContent() {
           {run?.timeLimitSeconds != null && (
             <>
               <div className="flex flex-col items-center gap-px">
-                <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Duration</span>
+                <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Duration</span>
                 <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{duration}</span>
               </div>
               <div className="w-px h-6 bg-border flex-shrink-0" />
             </>
           )}
           <div className="flex flex-col items-center gap-px">
-            <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Total Pts</span>
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Total Pts</span>
             <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{totalPoints}</span>
           </div>
           <div className="w-px h-6 bg-border flex-shrink-0" />
           <div className="flex flex-col items-center gap-px">
-            <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Top Scorer</span>
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Top Scorer</span>
             <span className="font-display text-[18px] font-black tracking-[0.02em] uppercase text-text-secondary leading-none truncate max-w-[90px]">
               {topScorer?.displayName ?? "—"}
             </span>
@@ -249,7 +249,7 @@ function ResultsContent() {
               {upNextExpanded ? (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between gap-2.5">
-                    <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+                    <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
                       Up next
                     </span>
                     <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
@@ -259,10 +259,10 @@ function ResultsContent() {
                       <div key={ci} className="flex-1 min-w-0 flex flex-col">
                         {column.map((entry, i) => (
                           <div key={entry.id} className="flex items-center gap-2 py-1.5 min-w-0">
-                            <span className="font-display text-[11px] font-black text-text-muted w-4 text-right flex-shrink-0">
+                            <span className="font-display text-[12px] font-black text-text-muted w-4 text-right flex-shrink-0">
                               {ci * upNextMid + i + 1}
                             </span>
-                            <span className="font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary truncate">
+                            <span className="font-display text-[14px] font-bold tracking-[0.04em] uppercase text-text-secondary truncate">
                               {entry.displayName}
                             </span>
                           </div>
@@ -273,23 +273,23 @@ function ResultsContent() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2.5">
-                  <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
                     Up next
                   </span>
                   <div className="relative flex-1 min-w-0 overflow-hidden">
-                    <span className="block font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
+                    <span className="block font-display text-[14px] font-bold tracking-[0.04em] uppercase text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
                       {upNext.slice(0, visibleNameCount).map((e) => e.displayName).join(", ")}
                     </span>
                     <div ref={upNextMeasureRef} aria-hidden className="invisible absolute top-0 left-0 flex w-max whitespace-nowrap">
                       {upNext.map((e, i) => (
-                        <span key={e.id} className="font-display text-[13px] font-bold tracking-[0.04em] uppercase">
+                        <span key={e.id} className="font-display text-[14px] font-bold tracking-[0.04em] uppercase">
                           {e.displayName}{i < upNext.length - 1 ? ", " : ""}
                         </span>
                       ))}
                     </div>
                   </div>
                   {hiddenCount > 0 && (
-                    <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
+                    <span className="font-display text-[12px] font-bold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
                       +{hiddenCount}
                     </span>
                   )}

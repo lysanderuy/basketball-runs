@@ -30,7 +30,7 @@ export function Topbar({
       )}
     >
       <div className="flex flex-col gap-0.5">
-        <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted">
+        <span className="font-display text-[12px] font-bold tracking-[0.12em] uppercase text-text-muted">
           {label}
         </span>
         <span className="font-display text-[20px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">

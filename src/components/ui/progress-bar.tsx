@@ -27,12 +27,12 @@ export function ProgressBar({
       {(labelA || labelB) && (
         <div className="flex justify-between items-center">
           {labelA && (
-            <span className="font-display text-[11px] font-bold tracking-[0.1em] uppercase text-text-muted">
+            <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">
               {labelA}
             </span>
           )}
           {labelB && (
-            <span className="font-display text-[11px] font-bold tracking-[0.1em] uppercase text-text-muted">
+            <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">
               {labelB}
             </span>
           )}
@@ -89,7 +89,7 @@ export function BalanceBar({
         <div className="flex flex-col gap-px">
           <span
             className={cn(
-              "font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted",
+              "font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted",
               countA > countB && "text-accent-dim"
             )}
           >
@@ -106,13 +106,13 @@ export function BalanceBar({
             {countA}
           </span>
         </div>
-        <span className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
+        <span className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted">
           vs
         </span>
         <div className="flex flex-col gap-px items-end">
           <span
             className={cn(
-              "font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted",
+              "font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted",
               countB > countA && "text-accent-dim"
             )}
           >
@@ -142,7 +142,7 @@ export function BalanceBar({
       </div>
       <span
         className={cn(
-          "font-display text-[11px] font-bold tracking-[0.1em] uppercase text-center transition-colors",
+          "font-display text-[12px] font-bold tracking-[0.1em] uppercase text-center transition-colors",
           statusColor
         )}
       >

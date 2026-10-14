@@ -54,7 +54,7 @@ export default function JoinByCodeForm() {
         aria-invalid={invalid}
         className={cn(
           "h-14 min-w-0 flex-1 rounded-md border border-border bg-bg-surface px-4",
-          "font-display text-[22px] font-black uppercase tracking-[0.18em] text-text-primary",
+          "font-display text-[24px] font-black uppercase tracking-[0.18em] text-text-primary",
           "outline-none transition-colors duration-150",
           "placeholder:font-bold placeholder:normal-case placeholder:tracking-[0.12em] placeholder:text-text-muted",
           "focus:border-border-accent focus:bg-bg-hover",
@@ -65,7 +65,7 @@ export default function JoinByCodeForm() {
         type="submit"
         className={cn(
           "h-14 flex-shrink-0 rounded-md border px-6",
-          "font-display text-[15px] font-extrabold uppercase tracking-[0.1em]",
+          "font-display text-[16px] font-extrabold uppercase tracking-[0.1em]",
           "flex items-center transition-all duration-150",
           codeReady
             ? "border-accent bg-accent text-bg hover:-translate-y-px shadow-[0_0_24px_-6px_rgba(200,241,53,0.5)]"

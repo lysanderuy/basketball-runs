@@ -57,7 +57,7 @@ function LoginForm() {
             <h2 className="font-display text-[20px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
               Sign In
             </h2>
-            <p className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">
+            <p className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted">
               Back on the court.
             </p>
           </div>
@@ -78,7 +78,7 @@ function LoginForm() {
             style={{ animationDelay: "0.1s" }}
           >
             <div className="flex-1 h-px bg-border" />
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
               or
             </span>
             <div className="flex-1 h-px bg-border" />
@@ -88,7 +88,7 @@ function LoginForm() {
             <input type="hidden" name="next" value={next} />
 
             <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.14s" }}>
-              <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
+              <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Email
               </label>
               <input
@@ -99,7 +99,7 @@ function LoginForm() {
                 className={cn(
                   "w-full h-13 bg-bg-surface border border-border rounded-md",
                   "px-3.5",
-                  "font-body text-[15px] text-text-primary",
+                  "font-body text-[16px] text-text-primary",
                   "outline-none transition-all duration-150",
                   "placeholder:text-text-muted",
                   "focus:border-border-accent focus:bg-bg-hover"
@@ -109,7 +109,7 @@ function LoginForm() {
             </div>
 
             <div className="flex flex-col gap-1.5 animate-fade-up" style={{ animationDelay: "0.18s" }}>
-              <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
+              <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
                 Password
               </label>
               <div className="relative">
@@ -121,7 +121,7 @@ function LoginForm() {
                   className={cn(
                     "w-full h-13 bg-bg-surface border border-border rounded-md",
                     "px-3.5 pr-11",
-                    "font-body text-[15px] text-text-primary",
+                    "font-body text-[16px] text-text-primary",
                     "outline-none transition-all duration-150",
                     "placeholder:text-text-muted",
                     "focus:border-border-accent focus:bg-bg-hover"
@@ -140,7 +140,7 @@ function LoginForm() {
             </div>
 
             {state?.error && (
-              <p className="font-body text-[13px] text-danger animate-slide-in">
+              <p className="font-body text-[14px] text-danger animate-slide-in">
                 {state.error}
               </p>
             )}

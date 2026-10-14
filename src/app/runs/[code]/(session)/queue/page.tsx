@@ -137,7 +137,7 @@ export default function QueuePage() {
               >
                 {stat.value}
               </span>
-              <span className="font-display text-[10px] font-bold tracking-[0.1em] uppercase text-text-muted">
+              <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">
                 {stat.label}
               </span>
             </div>
@@ -155,7 +155,7 @@ export default function QueuePage() {
               <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                 On Court
               </span>
-              <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-accent bg-accent-glow border border-border-accent px-2 py-0.5 rounded-sm">
+              <span className="font-display text-[12px] font-bold tracking-[0.08em] uppercase text-accent bg-accent-glow border border-border-accent px-2 py-0.5 rounded-sm">
                 {onCourtCount}
               </span>
             </div>
@@ -165,7 +165,7 @@ export default function QueuePage() {
                   key={entry.id}
                   className="bg-bg-surface border border-border-accent bg-[rgba(200,241,53,0.04)] rounded-md px-3 py-2.5 flex items-center gap-2.5"
                 >
-                  <span className="font-display text-[13px] font-extrabold text-accent-dim w-5 text-center flex-shrink-0">
+                  <span className="font-display text-[14px] font-extrabold text-accent-dim w-5 text-center flex-shrink-0">
                     {i + 1}
                   </span>
                   <span className="font-display text-[16px] font-extrabold uppercase text-text-primary flex-1 truncate tracking-[0.02em]">
@@ -187,7 +187,7 @@ export default function QueuePage() {
               <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                 Waiting
               </span>
-              <span className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-text-muted bg-bg-hover border border-border px-2 py-0.5 rounded-sm">
+              <span className="font-display text-[12px] font-bold tracking-[0.08em] uppercase text-text-muted bg-bg-hover border border-border px-2 py-0.5 rounded-sm">
                 {waitingCount}
               </span>
             </div>
@@ -200,7 +200,7 @@ export default function QueuePage() {
                     className={`bg-bg-surface border border-border rounded-md px-3 py-2.5 flex items-center gap-2.5 transition-opacity ${entry.status === "marked_out" ? "opacity-45" : ""}`}
                   >
                     <span
-                      className={`font-display text-[13px] font-extrabold w-5 text-center flex-shrink-0 ${entry.status === "marked_out" ? "text-text-muted" : "text-accent-dim"}`}
+                      className={`font-display text-[14px] font-extrabold w-5 text-center flex-shrink-0 ${entry.status === "marked_out" ? "text-text-muted" : "text-accent-dim"}`}
                     >
                       {i + 1}
                     </span>
@@ -237,7 +237,7 @@ export default function QueuePage() {
             ) : (
               <>
                   <div className="mx-5 mt-4 px-5 py-6 bg-bg-surface border border-dashed border-border rounded-md flex flex-col items-center gap-1.5 text-center">
-                    <span className="font-display text-[13px] font-bold tracking-[0.08em] uppercase text-text-muted">
+                    <span className="font-display text-[14px] font-bold tracking-[0.08em] uppercase text-text-muted">
                       Queue is empty
                     </span>
                     <span className="font-body text-[12px] text-text-muted">
@@ -309,14 +309,14 @@ export default function QueuePage() {
               </div>
 
               {addError && (
-                <p className="font-body text-[13px] text-danger mb-3 animate-slide-in">{addError}</p>
+                <p className="font-body text-[14px] text-danger mb-3 animate-slide-in">{addError}</p>
               )}
 
               <button
                 type="button"
                 onClick={handleAddPlayer}
                 disabled={adding || !addName.trim()}
-                className="w-full h-12 rounded-md bg-accent text-bg font-display text-[15px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center gap-2 transition-colors hover:bg-[#d4f545] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                className="w-full h-12 rounded-md bg-accent text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase flex items-center justify-center gap-2 transition-colors hover:bg-[#d4f545] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
                 Add to Queue
@@ -345,7 +345,7 @@ export default function QueuePage() {
                   setCtxMenu(null);
                   handleStatusUpdate(id, "marked_out");
                 }}
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm cursor-pointer font-display text-[13px] font-bold uppercase tracking-[0.04em] text-text-secondary hover:bg-bg-hover hover:text-text-primary w-full"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm cursor-pointer font-display text-[14px] font-bold uppercase tracking-[0.04em] text-text-secondary hover:bg-bg-hover hover:text-text-primary w-full"
               >
                 <Ban className="w-3.5 h-3.5 flex-shrink-0" />
                 Mark Out
@@ -358,7 +358,7 @@ export default function QueuePage() {
                   setCtxMenu(null);
                   handleStatusUpdate(id, "waiting");
                 }}
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm cursor-pointer font-display text-[13px] font-bold uppercase tracking-[0.04em] text-accent hover:bg-bg-hover w-full"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm cursor-pointer font-display text-[14px] font-bold uppercase tracking-[0.04em] text-accent hover:bg-bg-hover w-full"
               >
                 <RotateCcw className="w-3.5 h-3.5 flex-shrink-0" />
                 Reinstate
@@ -372,7 +372,7 @@ export default function QueuePage() {
                 setCtxMenu(null);
                 handleStatusUpdate(id, "removed");
               }}
-              className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm cursor-pointer font-display text-[13px] font-bold uppercase tracking-[0.04em] text-danger hover:bg-danger-light hover:text-[#ff8080] w-full"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm cursor-pointer font-display text-[14px] font-bold uppercase tracking-[0.04em] text-danger hover:bg-danger-light hover:text-[#ff8080] w-full"
             >
               <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
               Remove

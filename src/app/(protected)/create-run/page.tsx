@@ -104,7 +104,7 @@ export default function CreateRunPage() {
         {/* Run name + location — side-by-side on sm+ */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           <div className="flex flex-col gap-1.5">
-            <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
               Run Name
             </label>
             <input
@@ -115,7 +115,7 @@ export default function CreateRunPage() {
               onChange={(e) => setName(e.target.value.toUpperCase())}
               className={cn(
                 "h-12 w-full rounded-md border border-border bg-bg-surface",
-                "px-3.5 font-display text-[17px] font-bold tracking-[0.02em] uppercase text-text-primary placeholder:text-text-muted placeholder:font-semibold",
+                "px-3.5 font-display text-[18px] font-bold tracking-[0.02em] uppercase text-text-primary placeholder:text-text-muted placeholder:font-semibold",
                 "outline-none transition-all duration-150 caret-accent",
                 "focus:border-border-accent focus:bg-bg-hover"
               )}
@@ -123,7 +123,7 @@ export default function CreateRunPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
               Location
             </label>
             <input
@@ -134,7 +134,7 @@ export default function CreateRunPage() {
               onChange={(e) => setLocation(e.target.value.toUpperCase())}
               className={cn(
                 "h-12 w-full rounded-md border border-border bg-bg-surface",
-                "px-3.5 font-display text-[17px] font-bold tracking-[0.02em] uppercase text-text-primary placeholder:text-text-muted placeholder:font-semibold",
+                "px-3.5 font-display text-[18px] font-bold tracking-[0.02em] uppercase text-text-primary placeholder:text-text-muted placeholder:font-semibold",
                 "outline-none transition-all duration-150 caret-accent",
                 "focus:border-border-accent focus:bg-bg-hover"
               )}
@@ -144,7 +144,7 @@ export default function CreateRunPage() {
 
         {/* Format */}
         <div className="flex flex-col gap-1.5">
-          <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+          <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
             Format
           </label>
           <div className="flex gap-2">
@@ -158,7 +158,7 @@ export default function CreateRunPage() {
                 key={opt.value}
                 onClick={() => setFormat(opt.value)}
                 className={cn(
-                  "flex-1 h-10 rounded-md border font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
+                  "flex-1 h-10 rounded-md border font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
                   "flex items-center justify-center gap-1.5",
                   format === opt.value
                     ? "border-border-accent bg-accent-glow text-accent"
@@ -178,7 +178,7 @@ export default function CreateRunPage() {
 
         {/* Point system */}
         <div className="flex flex-col gap-1.5">
-          <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+          <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
             Point System
           </label>
           <div className="flex gap-2">
@@ -192,7 +192,7 @@ export default function CreateRunPage() {
                 key={opt.value}
                 onClick={() => setPointSystem(opt.value)}
                 className={cn(
-                  "flex-1 h-10 rounded-md border font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
+                  "flex-1 h-10 rounded-md border font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
                   "flex items-center justify-center gap-1.5",
                   pointSystem === opt.value
                     ? "border-border-accent bg-accent-glow text-accent"
@@ -212,7 +212,7 @@ export default function CreateRunPage() {
 
         {/* Score goal */}
         <div className="flex flex-col gap-1.5">
-          <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+          <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
             Score Goal
           </label>
           <div className="flex items-center gap-2.5">
@@ -221,7 +221,7 @@ export default function CreateRunPage() {
               disabled={scoreGoal <= SCORE_MIN}
               className={cn(
                 "w-11 h-11 flex-shrink-0 rounded-md border border-border bg-bg-surface",
-                "font-display text-[22px] font-bold flex items-center justify-center transition-all duration-150",
+                "font-display text-[24px] font-bold flex items-center justify-center transition-all duration-150",
                 "disabled:text-text-muted disabled:cursor-not-allowed",
                 "enabled:text-text-secondary enabled:hover:border-text-muted enabled:hover:text-text-primary enabled:active:scale-95"
               )}
@@ -244,7 +244,7 @@ export default function CreateRunPage() {
               disabled={scoreGoal >= SCORE_MAX}
               className={cn(
                 "w-11 h-11 flex-shrink-0 rounded-md border border-border bg-bg-surface",
-                "font-display text-[22px] font-bold flex items-center justify-center transition-all duration-150",
+                "font-display text-[24px] font-bold flex items-center justify-center transition-all duration-150",
                 "disabled:text-text-muted disabled:cursor-not-allowed",
                 "enabled:text-text-secondary enabled:hover:border-text-muted enabled:hover:text-text-primary enabled:active:scale-95"
               )}
@@ -256,7 +256,7 @@ export default function CreateRunPage() {
 
         {/* Time limit */}
         <div className="flex flex-col gap-2">
-          <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+          <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
             Time Limit
           </label>
           <div
@@ -270,7 +270,7 @@ export default function CreateRunPage() {
             )}
           >
             <div className="flex flex-col gap-0.5">
-              <span className="font-display text-[15px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none">
+              <span className="font-display text-[16px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none">
                 Game Clock
               </span>
               <span className="font-body text-[12px] text-text-muted">
@@ -300,7 +300,7 @@ export default function CreateRunPage() {
                   key={opt.value}
                   onClick={() => setSelectedTimeSeconds(opt.value)}
                   className={cn(
-                    "flex-1 h-10 rounded-md border font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
+                    "flex-1 h-10 rounded-md border font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-all duration-150",
                     selectedTimeSeconds === opt.value
                       ? "border-border-accent bg-accent-glow text-accent"
                       : "border-border bg-bg-surface text-text-secondary hover:border-text-muted hover:text-text-primary"

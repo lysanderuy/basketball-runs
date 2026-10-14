@@ -27,9 +27,9 @@ export function GameBreakdown({ players, scoreA, scoreB, winner }: GameBreakdown
       <div className="px-5 grid grid-cols-2 gap-2.5">
 
         <div className="flex flex-col gap-[5px]">
-          <div className={`flex items-center justify-between pb-1.5 mb-0.5 border-b font-display text-[11px] font-extrabold tracking-[0.14em] uppercase ${isTeamAWinner ? "text-accent-dim border-border-accent" : "text-text-muted border-border"}`}>
+          <div className={`flex items-center justify-between pb-1.5 mb-0.5 border-b font-display text-[12px] font-extrabold tracking-[0.14em] uppercase ${isTeamAWinner ? "text-accent-dim border-border-accent" : "text-text-muted border-border"}`}>
             Runs
-            <span className={`text-[13px] font-black ${isTeamAWinner ? "text-accent" : "text-text-muted"}`}>
+            <span className={`text-[14px] font-black ${isTeamAWinner ? "text-accent" : "text-text-muted"}`}>
               {scoreA}
             </span>
           </div>
@@ -38,7 +38,7 @@ export function GameBreakdown({ players, scoreA, scoreB, winner }: GameBreakdown
               key={player.queueEntryId}
               className={`bg-bg-surface border rounded-md px-2.5 h-9 flex items-center justify-between gap-1.5 ${i === 0 && player.points > 0 ? "border-border-accent" : "border-border"}`}
             >
-              <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
+              <span className="font-display text-[14px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
                 {player.displayName}
               </span>
               <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 && player.points > 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>
@@ -49,9 +49,9 @@ export function GameBreakdown({ players, scoreA, scoreB, winner }: GameBreakdown
         </div>
 
         <div className="flex flex-col gap-[5px]">
-          <div className={`flex items-center justify-between pb-1.5 mb-0.5 border-b font-display text-[11px] font-extrabold tracking-[0.14em] uppercase ${isTeamBWinner ? "text-accent-dim border-border-accent" : "text-text-muted border-border"}`}>
+          <div className={`flex items-center justify-between pb-1.5 mb-0.5 border-b font-display text-[12px] font-extrabold tracking-[0.14em] uppercase ${isTeamBWinner ? "text-accent-dim border-border-accent" : "text-text-muted border-border"}`}>
             Next
-            <span className={`text-[13px] font-black ${isTeamBWinner ? "text-accent" : "text-text-muted"}`}>
+            <span className={`text-[14px] font-black ${isTeamBWinner ? "text-accent" : "text-text-muted"}`}>
               {scoreB}
             </span>
           </div>
@@ -60,7 +60,7 @@ export function GameBreakdown({ players, scoreA, scoreB, winner }: GameBreakdown
               key={player.queueEntryId}
               className={`bg-bg-surface border rounded-md px-2.5 h-9 flex items-center justify-between gap-1.5 ${i === 0 && player.points > 0 ? "border-border-accent" : "border-border"}`}
             >
-              <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
+              <span className="font-display text-[14px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
                 {player.displayName}
               </span>
               <span className={`font-display font-black tracking-[-0.01em] leading-none flex-shrink-0 ${i === 0 && player.points > 0 ? "text-[20px] text-accent" : player.points === 0 ? "text-[16px] text-text-muted" : "text-[20px] text-text-muted"}`}>

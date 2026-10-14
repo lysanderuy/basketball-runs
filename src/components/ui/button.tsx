@@ -37,14 +37,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           },
           {
             // Note: size only applies to secondary/ghost - primary/danger have fixed heights per docs
-            "h-10 px-4 text-[11px]": size === "sm",
-            "h-[40px] px-4 text-[13px]": size === "md",
-            "h-[52px] px-5 text-[13px]": size === "lg",
+            "h-10 px-4 text-[12px]": size === "sm",
+            "h-[40px] px-4 text-[14px]": size === "md",
+            "h-[52px] px-5 text-[14px]": size === "lg",
           },
           // Primary/danger fixed heights per docs Section 12
           {
             "h-[52px] text-[16px]": variant === "primary" && size === "lg",
-            "h-[52px] text-[15px]": variant === "danger" && size === "lg",
+            "h-[52px] text-[16px]": variant === "danger" && size === "lg",
           },
           className
         )}

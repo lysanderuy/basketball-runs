@@ -119,14 +119,14 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
       {/* WORDMARK */}
       <div className="pt-14 flex flex-col gap-[2px] animate-fade-up">
         <div className="flex items-start justify-between">
-          <h1 className="font-display text-[52px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
+          <h1 className="font-display text-[56px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
             Ball
             <br />
             Runs
           </h1>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <button className="mt-1 w-[38px] h-[38px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[13px] font-extrabold tracking-[0.04em] text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors hover:bg-bg-surface">
+              <button className="mt-1 w-[38px] h-[38px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[14px] font-extrabold tracking-[0.04em] text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-colors hover:bg-bg-surface">
                 {initials}
               </button>
             </DropdownMenu.Trigger>
@@ -138,7 +138,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 className="z-50 min-w-[200px] rounded-md border border-border bg-bg-surface shadow-lg outline-none animate-fade-up"
               >
                 <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border">
-                  <div className="w-[30px] h-[30px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[11px] font-extrabold tracking-[0.04em] text-accent">
+                  <div className="w-[30px] h-[30px] flex-shrink-0 rounded-full bg-bg-hover border border-border-accent flex items-center justify-center font-display text-[12px] font-extrabold tracking-[0.04em] text-accent">
                     {initials}
                   </div>
                   <span className="font-body text-[12px] font-medium text-text-muted truncate">
@@ -150,7 +150,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                   <DropdownMenu.Item asChild>
                     <button
                       onClick={() => requestHost.mutate()}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[14px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
                     >
                       <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
                       Become a Host
@@ -161,7 +161,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 <DropdownMenu.Item asChild>
                   <Link
                     href="/account"
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[14px] font-bold tracking-[0.06em] uppercase text-text-secondary hover:bg-bg-hover hover:text-text-primary outline-none cursor-pointer transition-colors"
                   >
                     <User className="w-3.5 h-3.5 flex-shrink-0" />
                     Account
@@ -173,7 +173,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 <DropdownMenu.Item asChild>
                   <button
                     onClick={() => signOut()}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase text-[#ff4040] hover:bg-[#ff4040]/10 outline-none cursor-pointer transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 font-display text-[14px] font-bold tracking-[0.06em] uppercase text-[#ff4040] hover:bg-[#ff4040]/10 outline-none cursor-pointer transition-colors"
                   >
                     <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
                     Sign Out
@@ -202,19 +202,19 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className="w-[7px] h-[7px] rounded-full bg-[#3ddc84] flex-shrink-0 animate-live-pulse" />
-                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent-dim">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-accent-dim">
                     {activeRun.isHost ? "Live" : "Live · You're in"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                     {activeRun.gameCount} {activeRun.gameCount === 1 ? "Game" : "Games"}
                   </span>
                   <ChevronRight className="w-4 h-4 text-text-muted" />
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-display text-[22px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
+                <span className="font-display text-[24px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
                   {activeRun.name}
                 </span>
                 {activeRun.location && (
@@ -230,7 +230,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
             className="flex flex-col gap-2.5 animate-fade-up"
             style={{ animationDelay: "0.14s" }}
           >
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
               {activeRun ? "Join another run" : "Join a run"}
             </span>
             <JoinByCodeForm />
@@ -243,7 +243,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 style={{ animationDelay: "0.18s" }}
               >
                 <div className="flex-1 h-px bg-border" />
-                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                   or
                 </span>
                 <div className="flex-1 h-px bg-border" />
@@ -253,7 +253,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 className={cn(
                   "w-full h-14 rounded-md animate-fade-up",
                   "bg-accent text-bg",
-                  "font-display text-[17px] font-extrabold tracking-[0.1em] uppercase",
+                  "font-display text-[18px] font-extrabold tracking-[0.1em] uppercase",
                   "flex items-center justify-center gap-2",
                   "transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98]"
                 )}
@@ -271,7 +271,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
               style={{ animationDelay: "0.22s" }}
             >
               <Clock className="w-4 h-4 text-text-muted" />
-              <span className="font-display text-[15px] font-extrabold tracking-[0.1em] uppercase text-text-muted">
+              <span className="font-display text-[16px] font-extrabold tracking-[0.1em] uppercase text-text-muted">
                 Host Request Pending
               </span>
             </div>
@@ -307,7 +307,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 <span className="font-display text-[20px] font-extrabold tracking-[0.02em] uppercase text-text-primary leading-none">
                   Run Your Own Court
                 </span>
-                <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                <span className="font-body text-[14px] text-text-secondary leading-[1.5]">
                   {isDenied
                     ? "Your last request wasn't approved. Add some detail and try again."
                     : "Hosting is approval-gated. Send a quick request and we'll get you set up."}
@@ -317,7 +317,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 <button
                   onClick={() => requestHost.mutate()}
                   disabled={requestHost.isPending}
-                  className="w-full h-12 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[15px] font-extrabold tracking-[0.1em] uppercase transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98] disabled:opacity-50"
+                  className="w-full h-12 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[16px] font-extrabold tracking-[0.1em] uppercase transition-all duration-150 hover:-translate-y-px hover:bg-[#d4f545] active:scale-[0.98] disabled:opacity-50"
                 >
                   {requestHost.isPending
                     ? "Sending…"
@@ -327,7 +327,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 </button>
                 <button
                   onClick={handleDismissHostPrompt}
-                  className="w-full h-11 flex items-center justify-center rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:bg-bg-hover hover:text-text-primary"
+                  className="w-full h-11 flex items-center justify-center rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-colors hover:bg-bg-hover hover:text-text-primary"
                 >
                   Not now
                 </button>
@@ -340,7 +340,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
           <button
             onClick={() => requestHost.mutate()}
             disabled={requestHost.isPending}
-            className="mt-auto pt-8 w-full text-center font-body text-[13px] text-text-muted transition-colors hover:text-text-secondary animate-fade-up disabled:opacity-50"
+            className="mt-auto pt-8 w-full text-center font-body text-[14px] text-text-muted transition-colors hover:text-text-secondary animate-fade-up disabled:opacity-50"
             style={{ animationDelay: "0.3s" }}
           >
             Want to run your own court?{" "}
@@ -364,7 +364,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                   <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
                     Run in Progress
                   </span>
-                  <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                  <span className="font-body text-[14px] text-text-secondary leading-[1.5]">
                     You already have an active run. Continue it, or close it to start a new one.
                   </span>
                 </div>
@@ -383,7 +383,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                 <button
                   type="button"
                   onClick={() => router.push(`/runs/${activeRun.sessionCode}/lobby`)}
-                  className="w-full h-11 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[13px] font-black tracking-[0.08em] uppercase transition-opacity hover:opacity-90"
+                  className="w-full h-11 flex items-center justify-center rounded-md bg-accent text-bg font-display text-[14px] font-black tracking-[0.08em] uppercase transition-opacity hover:opacity-90"
                 >
                   Continue Run
                 </button>
@@ -391,7 +391,7 @@ export default function DashboardClient({ initialUser }: DashboardClientProps) {
                   type="button"
                   onClick={handleCloseAndStart}
                   disabled={closeRun.isPending}
-                  className="w-full h-11 flex items-center justify-center rounded-md border border-danger/40 bg-danger/[0.06] text-[#ff6060] font-display text-[13px] font-black tracking-[0.08em] uppercase transition-all hover:bg-danger/[0.12] disabled:opacity-50"
+                  className="w-full h-11 flex items-center justify-center rounded-md border border-danger/40 bg-danger/[0.06] text-[#ff6060] font-display text-[14px] font-black tracking-[0.08em] uppercase transition-all hover:bg-danger/[0.12] disabled:opacity-50"
                 >
                   {closeRun.isPending ? "Closing..." : "Close & Start New"}
                 </button>

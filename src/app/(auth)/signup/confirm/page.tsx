@@ -60,7 +60,7 @@ export default async function ConfirmEmailPage({
           </div>
 
           <p
-            className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted animate-fade-up"
+            className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted animate-fade-up"
             style={{ animationDelay: "0.1s" }}
           >
             Didn&apos;t get it? Check your spam folder.
@@ -72,12 +72,12 @@ export default async function ConfirmEmailPage({
         className="pb-12 flex items-center justify-center gap-1.5 animate-fade-up"
         style={{ animationDelay: "0.14s" }}
       >
-        <span className="font-body text-[13px] text-text-muted">
+        <span className="font-body text-[14px] text-text-muted">
           Already confirmed?
         </span>
         <Link
           href="/login"
-          className="font-body text-[13px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
+          className="font-body text-[14px] font-semibold text-text-secondary underline underline-offset-2 decoration-border transition-colors hover:text-text-primary"
         >
           Sign in
         </Link>

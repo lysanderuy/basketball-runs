@@ -16,7 +16,7 @@ interface Props {
 const inputClass = cn(
   "w-full h-13 bg-bg-surface border border-border rounded-md",
   "px-3.5",
-  "font-body text-[15px] text-text-primary",
+  "font-body text-[16px] text-text-primary",
   "outline-none transition-all duration-150",
   "placeholder:text-text-muted",
   "focus:border-border-accent focus:bg-bg-hover"
@@ -38,12 +38,12 @@ export function JoinPageClient({ runCode, currentUser }: Props) {
           <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
             Run not found
           </span>
-          <span className="font-body text-[13px] text-text-muted">
+          <span className="font-body text-[14px] text-text-muted">
             Check the code and try again.
           </span>
           <Link
             href="/"
-            className="mt-4 font-display text-[13px] font-bold tracking-[0.08em] uppercase text-accent underline underline-offset-2"
+            className="mt-4 font-display text-[14px] font-bold tracking-[0.08em] uppercase text-accent underline underline-offset-2"
           >
             Back to home
           </Link>
@@ -104,10 +104,10 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
           className="pt-10 flex items-center justify-between animate-fade-up"
           style={{ animationDelay: "0s" }}
         >
-          <span className="font-display text-[11px] font-bold tracking-[0.16em] uppercase text-text-muted">
+          <span className="font-display text-[12px] font-bold tracking-[0.16em] uppercase text-text-muted">
             {runName}
           </span>
-          <span className="font-display text-[11px] font-bold tracking-[0.16em] uppercase text-accent">
+          <span className="font-display text-[12px] font-bold tracking-[0.16em] uppercase text-accent">
             You&apos;re in
           </span>
         </div>
@@ -115,7 +115,7 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
         {/* Hero */}
         <div className="flex-1 flex flex-col items-center justify-center">
           <span
-            className="font-display text-[11px] font-bold tracking-[0.2em] uppercase text-text-muted mb-3 animate-fade-up"
+            className="font-display text-[12px] font-bold tracking-[0.2em] uppercase text-text-muted mb-3 animate-fade-up"
             style={{ animationDelay: "0.06s" }}
           >
             Queue position
@@ -156,10 +156,10 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
             className="mt-10 w-full border-t border-border pt-5 flex items-center justify-center gap-2 animate-fade-up"
             style={{ animationDelay: "0.24s" }}
           >
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
               Playing as
             </span>
-            <span className="font-display text-[13px] font-black tracking-[0.08em] uppercase text-text-primary">
+            <span className="font-display text-[14px] font-black tracking-[0.08em] uppercase text-text-primary">
               {joined.displayName}
             </span>
           </div>
@@ -193,10 +193,10 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
         </Link>
       </div>
       <div className="pt-8 flex flex-col gap-[2px] animate-fade-up">
-        <p className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent mb-1">
+        <p className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-accent mb-1">
           {runName}
         </p>
-        <h1 className="font-display text-[52px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
+        <h1 className="font-display text-[56px] font-black tracking-[-0.01em] uppercase text-text-primary leading-none">
           Join
           <br />
           Queue
@@ -213,7 +213,7 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
             className="flex flex-col gap-1.5 animate-fade-up"
             style={{ animationDelay: "0.1s" }}
           >
-            <label className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
+            <label className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted pl-[2px]">
               Name
             </label>
             <input
@@ -230,7 +230,7 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
           </div>
 
           {error && (
-            <p className="font-body text-[13px] text-danger animate-slide-in">
+            <p className="font-body text-[14px] text-danger animate-slide-in">
               {error}
             </p>
           )}
@@ -248,7 +248,7 @@ export default function JoinForm({ runCode, runName, currentUser }: JoinFormProp
 
           {!currentUser && (
             <p
-              className="text-center font-body text-[13px] text-text-muted animate-fade-up"
+              className="text-center font-body text-[14px] text-text-muted animate-fade-up"
               style={{ animationDelay: "0.22s" }}
             >
               Already have an account?{" "}

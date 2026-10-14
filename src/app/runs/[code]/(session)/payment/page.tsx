@@ -109,7 +109,7 @@ export default function PaymentPage() {
               >
                 {stat.value}
               </span>
-              <span className="font-display text-[10px] font-bold tracking-[0.1em] uppercase text-text-muted">
+              <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">
                 {stat.label}
               </span>
             </div>
@@ -128,7 +128,7 @@ export default function PaymentPage() {
               <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                 Players
               </span>
-              <span className="font-display text-[10px] font-bold tracking-[0.08em] uppercase text-text-muted">
+              <span className="font-display text-[12px] font-bold tracking-[0.08em] uppercase text-text-muted">
                 Tap to mark paid · Double-tap to undo
               </span>
             </div>
@@ -170,7 +170,7 @@ export default function PaymentPage() {
               ))
             ) : (
               <div className="px-5 py-6 bg-bg-surface border border-dashed border-border rounded-md flex flex-col items-center gap-1.5 text-center">
-                <span className="font-display text-[13px] font-bold tracking-[0.08em] uppercase text-text-muted">
+                <span className="font-display text-[14px] font-bold tracking-[0.08em] uppercase text-text-muted">
                   No players yet
                 </span>
                 <span className="font-body text-[12px] text-text-muted">

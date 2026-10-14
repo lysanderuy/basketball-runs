@@ -87,7 +87,7 @@ export function PlayerCard({
       {position !== undefined && variant === "queue" && (
         <span
           className={cn(
-            "font-display text-[13px] font-extrabold tracking-[0.04em] text-text-muted w-5 text-center flex-shrink-0 leading-none",
+            "font-display text-[14px] font-extrabold tracking-[0.04em] text-text-muted w-5 text-center flex-shrink-0 leading-none",
             variant === "queue" && "text-accent-dim"
           )}
         >
@@ -103,8 +103,8 @@ export function PlayerCard({
             {
               "text-[16px] tracking-[0.03em]":
                 variant === "queue" || variant === "assignment",
-              "text-[15px] tracking-[0.03em]": variant === "game",
-              "text-[13px] tracking-[0.03em]": variant === "result",
+              "text-[16px] tracking-[0.03em]": variant === "game",
+              "text-[14px] tracking-[0.03em]": variant === "result",
             }
           )}
         >
@@ -113,25 +113,25 @@ export function PlayerCard({
 
         {/* Variant-specific secondary info */}
         {variant === "queue" && time && (
-          <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
+          <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted flex-shrink-0">
             {time}
           </span>
         )}
 
         {variant === "game" && (
-          <span className="font-display text-[10px] font-semibold tracking-[0.12em] uppercase text-text-muted">
+          <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase text-text-muted">
             pts
           </span>
         )}
 
         {variant === "result" && (
-          <span className="font-display text-[10px] font-semibold tracking-[0.12em] uppercase text-text-muted">
+          <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase text-text-muted">
             pts
           </span>
         )}
 
         {variant === "assignment" && (
-          <span className="font-display text-[10px] font-semibold tracking-[0.12em] uppercase text-text-muted">
+          <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase text-text-muted">
             Drag to balance
           </span>
         )}
@@ -143,7 +143,7 @@ export function PlayerCard({
           className={cn(
             "font-display font-black leading-none flex-shrink-0 transition-colors",
             {
-              "text-[22px] tracking-[-0.01em] text-text-secondary":
+              "text-[24px] tracking-[-0.01em] text-text-secondary":
                 variant === "game",
               "text-[20px] tracking-[-0.01em]": variant === "result",
               "text-accent transform scale-115": justScored,

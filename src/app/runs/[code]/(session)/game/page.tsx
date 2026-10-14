@@ -244,7 +244,7 @@ export default function GamePage() {
       <div className="flex flex-col h-full overflow-hidden">
         <SessionTopbar run={null} loading={true} />
         <div className="flex-1 flex items-center justify-center">
-          <div className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted animate-pulse">
+          <div className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted animate-pulse">
             Loading…
           </div>
         </div>
@@ -299,7 +299,7 @@ export default function GamePage() {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center py-2 gap-2">
             {/* Team A */}
             <div className="flex flex-col items-center gap-0.5">
-              <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+              <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                 Runs
               </span>
               <span
@@ -327,7 +327,7 @@ export default function GamePage() {
 
             {/* Team B */}
             <div className="flex flex-col items-center gap-0.5">
-              <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+              <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                 Next
               </span>
               <span
@@ -367,7 +367,7 @@ export default function GamePage() {
                   onClick={toggleClock}
                   disabled={game!.status === "completed"}
                   className={[
-                    "h-[38px] px-4 rounded-sm border font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-all",
+                    "h-[38px] px-4 rounded-sm border font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-all",
                     game!.clockStartedAt && !game!.clockPausedAt
                       ? "bg-accent/15 border-accent/30 text-accent"
                       : "bg-bg-hover border-border text-text-primary hover:border-accent-dim hover:text-accent",
@@ -393,7 +393,7 @@ export default function GamePage() {
         <div className="px-5 pb-4 grid grid-cols-2 gap-2.5">
           {/* Team A */}
           <div className="flex flex-col gap-1.5">
-            <div className="font-display text-[11px] font-black tracking-[0.14em] uppercase text-accent-dim border-b border-accent/30 pb-1 mb-0.5">
+            <div className="font-display text-[12px] font-black tracking-[0.14em] uppercase text-accent-dim border-b border-accent/30 pb-1 mb-0.5">
               Runs
             </div>
             {teamA.map((player) => (
@@ -410,7 +410,7 @@ export default function GamePage() {
 
           {/* Team B */}
           <div className="flex flex-col gap-1.5">
-            <div className="font-display text-[11px] font-black tracking-[0.14em] uppercase text-text-muted border-b border-border pb-1 mb-0.5">
+            <div className="font-display text-[12px] font-black tracking-[0.14em] uppercase text-text-muted border-b border-border pb-1 mb-0.5">
               Next
             </div>
             {teamB.map((player) => (
@@ -441,16 +441,16 @@ export default function GamePage() {
                   className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-surface rounded-md border border-border animate-slide-in"
                 >
                   <span
-                    className={`font-display text-[13px] font-black tracking-[0.06em] flex-shrink-0 ${
+                    className={`font-display text-[14px] font-black tracking-[0.06em] flex-shrink-0 ${
                       entry.team === "team_a" ? "text-accent" : "text-text-secondary"
                     }`}
                   >
                     +{entry.points}
                   </span>
-                  <span className="font-display text-[13px] font-semibold tracking-[0.04em] text-text-secondary flex-1">
+                  <span className="font-display text-[14px] font-semibold tracking-[0.04em] text-text-secondary flex-1">
                     <span className="capitalize">{entry.displayName}</span>{" scored"}
                   </span>
-                  <span className="font-display text-[13px] font-extrabold tracking-[0.06em] text-text-muted">
+                  <span className="font-display text-[14px] font-extrabold tracking-[0.06em] text-text-muted">
                     {entry.displayA} – {entry.displayB}
                   </span>
                 </div>
@@ -509,7 +509,7 @@ export default function GamePage() {
                 <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
                   End this game?
                 </span>
-                <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                <span className="font-body text-[14px] text-text-secondary leading-[1.5]">
                   This can&apos;t be undone. Current score:{" "}
                   <strong className="text-text-primary">
                     {game!.scoreA} – {game!.scoreB}
@@ -520,14 +520,14 @@ export default function GamePage() {
                 <button
                   type="button"
                   onClick={() => setShowEndConfirm(false)}
-                  className="flex-1 h-11 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
+                  className="flex-1 h-11 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleEndGame}
-                  className="flex-1 h-11 rounded-md border border-danger bg-danger/[0.08] text-[#ff6060] font-display text-[13px] font-black tracking-[0.1em] uppercase transition-all hover:bg-danger/[0.16]"
+                  className="flex-1 h-11 rounded-md border border-danger bg-danger/[0.08] text-[#ff6060] font-display text-[14px] font-black tracking-[0.1em] uppercase transition-all hover:bg-danger/[0.16]"
                 >
                   End Game
                 </button>
@@ -575,15 +575,15 @@ function PlayerCard({
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
       <div className="flex flex-col gap-px text-left">
-        <span className="font-display text-[15px] font-black tracking-[0.03em] uppercase text-text-primary leading-none">
+        <span className="font-display text-[16px] font-black tracking-[0.03em] uppercase text-text-primary leading-none">
           {player.displayName}
         </span>
-        <span className="font-display text-[10px] font-semibold tracking-[0.12em] uppercase text-text-muted">
+        <span className="font-display text-[12px] font-semibold tracking-[0.12em] uppercase text-text-muted">
           pts
         </span>
       </div>
       <span
-        className="font-display text-[22px] font-black tracking-[-0.01em] leading-none transition-colors duration-150"
+        className="font-display text-[24px] font-black tracking-[-0.01em] leading-none transition-colors duration-150"
         style={{ color: scoring || awaitingScorer ? "var(--accent)" : "var(--text-secondary)" }}
       >
         {player.points}

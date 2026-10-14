@@ -18,13 +18,13 @@ function InlineStatus({ status }: { status: RunSummary["status"] }) {
     return (
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <span className="w-[6px] h-[6px] rounded-full bg-[#3ddc84] flex-shrink-0 animate-pulse" />
-        <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-[#3ddc84]">Live</span>
+        <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-[#3ddc84]">Live</span>
       </div>
     );
   }
   if (status === "lobby") {
     return (
-      <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
+      <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted flex-shrink-0">
         Lobby
       </span>
     );
@@ -84,7 +84,7 @@ export default function HistoryPage() {
             </svg>
           </Link>
           <div className="flex flex-col gap-[3px]">
-            <span className="font-display text-[22px] font-extrabold tracking-[0.04em] uppercase text-text-primary leading-none">
+            <span className="font-display text-[24px] font-extrabold tracking-[0.04em] uppercase text-text-primary leading-none">
               History
             </span>
             <div className="w-7 h-[2px] bg-accent rounded-sm" />
@@ -114,7 +114,7 @@ export default function HistoryPage() {
                   {pageState === "ready" && count > 0 && (
                     <span
                       className={[
-                        "text-[10px] font-bold leading-none px-[5px] py-[3px] rounded-sm",
+                        "text-[12px] font-bold leading-none px-[5px] py-[3px] rounded-sm",
                         isActive ? "bg-accent/15 text-accent" : "bg-bg-hover text-text-muted",
                       ].join(" ")}
                     >
@@ -153,10 +153,10 @@ export default function HistoryPage() {
                 </svg>
               </div>
               <div className="flex flex-col items-center gap-1.5 text-center">
-                <span className="font-display text-[15px] font-bold tracking-[0.08em] uppercase text-text-secondary">
+                <span className="font-display text-[16px] font-bold tracking-[0.08em] uppercase text-text-secondary">
                   {filter === "all" ? "No runs yet" : filter === "created" ? "No runs created" : "No runs joined"}
                 </span>
-                <span className="font-body text-[13px] text-text-muted">
+                <span className="font-body text-[14px] text-text-muted">
                   {filter === "created" ? "Runs you host will appear here" : filter === "joined" ? "Runs you joined will appear here" : "Start a run to see it here"}
                 </span>
               </div>
@@ -177,7 +177,7 @@ export default function HistoryPage() {
                     {isFirstActive && (
                       <div className="flex items-center gap-2 pb-1">
                         <span className="w-[5px] h-[5px] rounded-full bg-[#3ddc84] flex-shrink-0 animate-pulse" />
-                        <span className="font-display text-[10px] font-bold tracking-[0.18em] uppercase text-[#3ddc84]/80">
+                        <span className="font-display text-[12px] font-bold tracking-[0.18em] uppercase text-[#3ddc84]/80">
                           On The Court
                         </span>
                       </div>
@@ -185,7 +185,7 @@ export default function HistoryPage() {
                     {isFirstCompleted && (
                       <div className="flex items-center gap-3 pt-3 pb-1">
                         <div className="flex-1 h-px bg-border" />
-                        <span className="font-display text-[10px] font-bold tracking-[0.18em] uppercase text-text-muted">
+                        <span className="font-display text-[12px] font-bold tracking-[0.18em] uppercase text-text-muted">
                           Completed
                         </span>
                         <div className="flex-1 h-px bg-border" />
@@ -216,7 +216,7 @@ export default function HistoryPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           {/* Role pill */}
                           <span
-                            className="font-display text-[10px] font-bold tracking-[0.14em] uppercase px-1.5 py-0.5 rounded"
+                            className="font-display text-[12px] font-bold tracking-[0.14em] uppercase px-1.5 py-0.5 rounded"
                             style={{
                               color: roleColor,
                               backgroundColor: `${roleColor}18`,
@@ -227,16 +227,16 @@ export default function HistoryPage() {
 
                           {run.location && (
                             <>
-                              <span className="text-border/60 select-none text-[10px]">·</span>
-                              <span className="font-display text-[11px] font-bold tracking-[0.1em] uppercase text-text-muted">{run.location}</span>
+                              <span className="text-border/60 select-none text-[12px]">·</span>
+                              <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">{run.location}</span>
                             </>
                           )}
-                          <span className="text-border/60 select-none text-[10px]">·</span>
-                          <span className="font-display text-[11px] font-bold tracking-[0.1em] uppercase text-text-muted">{formatDate(run.createdAt)}</span>
+                          <span className="text-border/60 select-none text-[12px]">·</span>
+                          <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">{formatDate(run.createdAt)}</span>
                           {run.gameCount > 0 && (
                             <>
-                              <span className="text-border/60 select-none text-[10px]">·</span>
-                              <span className="font-display text-[11px] font-bold tracking-[0.1em] uppercase text-text-muted">
+                              <span className="text-border/60 select-none text-[12px]">·</span>
+                              <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">
                                 {run.gameCount} {run.gameCount === 1 ? "Game" : "Games"}
                               </span>
                             </>

@@ -87,17 +87,17 @@ export default function LobbyPage() {
             <div className="px-4 pt-3.5 pb-4">
               {/* Session facts */}
               <div className="flex items-baseline justify-between">
-                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                   Run ended
                 </span>
-                <span className="font-display text-[11px] font-semibold tracking-[0.04em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-semibold tracking-[0.04em] uppercase text-text-muted">
                   {new Date(runStatsQuery.data.startedAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                   })}
                 </span>
               </div>
-              <span className="font-display text-[13px] font-semibold tracking-[0.02em] text-text-secondary mt-1 block">
+              <span className="font-display text-[14px] font-semibold tracking-[0.02em] text-text-secondary mt-1 block">
                 {runStatsQuery.data.gameCount} {runStatsQuery.data.gameCount === 1 ? "game" : "games"}
                 {" · "}
                 {runStatsQuery.data.playerCount} {runStatsQuery.data.playerCount === 1 ? "player" : "players"}
@@ -107,10 +107,10 @@ export default function LobbyPage() {
               {runStatsQuery.data.topScorers.length > 0 ? (
                 <div className="mt-3.5 pt-3.5 border-t border-border">
                   <div className="flex items-center justify-between">
-                    <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-accent">
+                    <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-accent">
                       Top Scorers
                     </span>
-                    <span className="font-display text-[9px] font-bold tracking-[0.12em] uppercase text-text-muted">
+                    <span className="font-display text-[12px] font-bold tracking-[0.12em] uppercase text-text-muted">
                       Pts
                     </span>
                   </div>
@@ -153,7 +153,7 @@ export default function LobbyPage() {
             className="mx-5 mt-4 bg-bg-surface border border-dashed border-border rounded-lg px-4 py-5 flex flex-col items-center gap-1 text-center animate-fade-up"
             style={{ animationDelay: "0.06s" }}
           >
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
               No game in progress
             </span>
             <span className="font-body text-[12px] text-text-muted mb-3">
@@ -182,7 +182,7 @@ export default function LobbyPage() {
 
             <div className="px-4 pt-3.5 pb-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                   Game {activeGame.gameNumber} · In progress
                 </span>
                 {activeGame.timeLimitSeconds !== null && (
@@ -194,7 +194,7 @@ export default function LobbyPage() {
 
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 mb-3">
                 <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                     Runs
                   </span>
                   <span
@@ -203,17 +203,17 @@ export default function LobbyPage() {
                   >
                     {activeGame.scoreA}
                   </span>
-                  <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                     to {activeGame.scoreGoal}
                   </span>
                 </div>
 
-                <span className="font-display text-[22px] font-black text-text-muted tracking-[-0.04em] pb-2.5">
+                <span className="font-display text-[24px] font-black text-text-muted tracking-[-0.04em] pb-2.5">
                   —
                 </span>
 
                 <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                     Next
                   </span>
                   <span
@@ -222,7 +222,7 @@ export default function LobbyPage() {
                   >
                     {activeGame.scoreB}
                   </span>
-                  <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                     to {activeGame.scoreGoal}
                   </span>
                 </div>
@@ -244,7 +244,7 @@ export default function LobbyPage() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); router.push(`/runs/${code}/game`); }}
-                  className="w-full h-10 mt-3 rounded-sm border border-accent bg-accent-glow text-accent font-display text-[13px] font-extrabold tracking-[0.12em] uppercase flex items-center justify-center gap-1.5 transition-colors hover:bg-[rgba(200,241,53,0.22)] active:scale-[0.98]"
+                  className="w-full h-10 mt-3 rounded-sm border border-accent bg-accent-glow text-accent font-display text-[14px] font-extrabold tracking-[0.12em] uppercase flex items-center justify-center gap-1.5 transition-colors hover:bg-[rgba(200,241,53,0.22)] active:scale-[0.98]"
                 >
                   <Play className="w-3.5 h-3.5" strokeWidth={2.5} />
                   Manage Game
@@ -255,7 +255,7 @@ export default function LobbyPage() {
                   <span className="font-display text-[12px] font-semibold tracking-[0.04em] text-text-muted flex-1">
                     {lastScorer ? `${lastScorer} scored` : "Live now"}
                   </span>
-                  <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                     Tap to watch →
                   </span>
                 </div>
@@ -293,17 +293,17 @@ export default function LobbyPage() {
               >
                 <div className="absolute inset-0 bg-accent-glow opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="flex-1 flex flex-col gap-0.5 relative z-10 min-w-0">
-                  <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted leading-none">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted leading-none">
                     Game {game.gameNumber}
                   </span>
                   <span className="font-display text-[16px] font-extrabold tracking-[0.04em] uppercase text-text-primary leading-none truncate">
                     {winnerLabel(game.winner)}
                   </span>
-                  <span className="font-display text-[11px] font-semibold tracking-[0.06em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-semibold tracking-[0.06em] uppercase text-text-muted">
                     {gameDuration(game.startedAt, game.endedAt)}
                   </span>
                 </div>
-                <span className="font-display text-[22px] font-black tracking-[-0.01em] text-text-secondary flex-shrink-0 leading-none relative z-10">
+                <span className="font-display text-[24px] font-black tracking-[-0.01em] text-text-secondary flex-shrink-0 leading-none relative z-10">
                   {game.scoreA}–{game.scoreB}
                 </span>
                 <ChevronRight
@@ -321,7 +321,7 @@ export default function LobbyPage() {
             className="mx-5 mt-4 px-5 py-6 bg-bg-surface border border-dashed border-border rounded-md flex flex-col items-center gap-1.5 text-center animate-fade-up"
             style={{ animationDelay: "0.12s" }}
           >
-            <span className="font-display text-[13px] font-bold tracking-[0.08em] uppercase text-text-muted">
+            <span className="font-display text-[14px] font-bold tracking-[0.08em] uppercase text-text-muted">
               No games yet
             </span>
             <span className="font-body text-[12px] text-text-muted">

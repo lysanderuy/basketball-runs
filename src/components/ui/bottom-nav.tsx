@@ -57,7 +57,7 @@ export function BottomNav() {
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
           {tab.icon}
-          <span className="font-display text-[10px] font-bold tracking-[0.1em] uppercase">
+          <span className="font-display text-[12px] font-bold tracking-[0.1em] uppercase">
             {tab.label}
           </span>
         </Link>

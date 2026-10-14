@@ -57,11 +57,11 @@ export default function PastGamePage() {
               className="px-5 pt-3 pb-1 flex flex-col gap-0.5 animate-fade-up"
               style={{ animationDelay: "0.04s" }}
             >
-              <span className="font-display text-[10px] font-bold tracking-[0.18em] uppercase text-text-muted">
+              <span className="font-display text-[12px] font-bold tracking-[0.18em] uppercase text-text-muted">
                 Game {game!.gameNumber}
               </span>
               <span
-                className={`font-display text-[22px] font-black tracking-[0.02em] uppercase leading-none ${winnerTextClass}`}
+                className={`font-display text-[24px] font-black tracking-[0.02em] uppercase leading-none ${winnerTextClass}`}
               >
                 {winnerLabel(winner)}
               </span>
@@ -74,7 +74,7 @@ export default function PastGamePage() {
             >
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 px-4 py-5">
                 <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                     Runs
                   </span>
                   <span
@@ -84,11 +84,11 @@ export default function PastGamePage() {
                     {game!.scoreA}
                   </span>
                 </div>
-                <span className="font-display text-[22px] font-black text-text-muted tracking-[-0.04em] pb-2.5">
+                <span className="font-display text-[24px] font-black text-text-muted tracking-[-0.04em] pb-2.5">
                   —
                 </span>
                 <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">
+                  <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">
                     Next
                   </span>
                   <span
@@ -100,18 +100,18 @@ export default function PastGamePage() {
                 </div>
               </div>
               <div className="border-t border-border px-4 py-2.5 flex items-center justify-center gap-2">
-                <span className="font-display text-[10px] font-bold tracking-[0.16em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-bold tracking-[0.16em] uppercase text-text-muted">
                   Final
                 </span>
-                <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                   · to {game!.scoreGoal}
                 </span>
                 {game!.timeLimitSeconds !== null && game!.startedAt && game!.endedAt && (
                   <>
-                    <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
+                    <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                       ·
                     </span>
-                    <span className="font-display text-[11px] font-semibold tracking-[0.08em] uppercase text-text-muted">
+                    <span className="font-display text-[12px] font-semibold tracking-[0.08em] uppercase text-text-muted">
                       {gameDuration(game!.startedAt, game!.endedAt)}
                     </span>
                   </>
@@ -125,12 +125,12 @@ export default function PastGamePage() {
               style={{ animationDelay: "0.12s" }}
             >
               <div className="flex flex-col items-center gap-px">
-                <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Total Pts</span>
+                <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Total Pts</span>
                 <span className="font-display text-[18px] font-black tracking-[0.02em] text-text-secondary leading-none">{totalPoints}</span>
               </div>
               <div className="w-px h-6 bg-border flex-shrink-0" />
               <div className="flex flex-col items-center gap-px">
-                <span className="font-display text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted">Top Scorer</span>
+                <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Top Scorer</span>
                 <span className="font-display text-[18px] font-black tracking-[0.02em] uppercase text-text-secondary leading-none truncate max-w-[90px]">
                   {topScorer?.displayName ?? "—"}
                 </span>
