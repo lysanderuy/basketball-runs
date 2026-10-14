@@ -1,13 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/server";
 import HomeClient from "@/components/HomeClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   return (
     <HomeClient

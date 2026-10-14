@@ -11,7 +11,11 @@ export async function updateSession(request: NextRequest) {
   const isProtected = PROTECTED_ROUTES.some((p) => pathname.startsWith(p));
   const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p));
 
-  if (!isProtected && !isAuthRoute) {
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-"));
+
+  if (!isProtected && !isAuthRoute && !hasAuthCookie) {
     return NextResponse.next({ request });
   }
 
