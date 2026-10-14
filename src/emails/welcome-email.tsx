@@ -18,7 +18,7 @@ export function WelcomeEmail({ displayName }: WelcomeEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>Welcome to BallRuns — let&apos;s get you on the court.</Preview>
+      <Preview>Welcome to BallRuns. Let&apos;s get you on the court.</Preview>
       <Body style={body}>
         <Container style={container}>
           <Section style={header}>
@@ -31,7 +31,7 @@ export function WelcomeEmail({ displayName }: WelcomeEmailProps) {
           </Heading>
 
           <Text style={text}>
-            Your account is live. BallRuns keeps your pickup games organized — run
+            Your account is live. BallRuns keeps your pickup games organized. Run
             the queue, track the score, and keep the court moving.
           </Text>
           <Text style={text}>

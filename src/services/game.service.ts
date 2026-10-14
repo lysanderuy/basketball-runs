@@ -66,7 +66,7 @@ export class PlayerNotInGameError extends Error {
 // row lock and reliably sees it — a true cross-instance guard against double-taps.
 export class DuplicateScoreError extends Error {
   constructor() {
-    super("Duplicate score — ignored");
+    super("Duplicate score ignored");
     this.name = "DuplicateScoreError";
   }
 }

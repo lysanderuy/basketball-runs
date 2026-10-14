@@ -235,8 +235,8 @@ export default function TeamAssignmentPage() {
 
   const CONFIRM_ERROR_BY_CODE: Record<string, string> = {
     ONGOING_GAME: "A game is already in progress. End it before starting a new one.",
-    INVALID_ENTRY_IDS: "Your roster changed — a selected player is no longer available. Refresh and try again.",
-    VALIDATION: "Your roster changed — a selected player is no longer available. Refresh and try again.",
+    INVALID_ENTRY_IDS: "Your roster changed. A selected player is no longer available. Refresh and try again.",
+    VALIDATION: "Your roster changed. A selected player is no longer available. Refresh and try again.",
     UNAUTHORIZED: "Your session expired or you're no longer the host. Refresh and sign in again.",
     FORBIDDEN: "Your session expired or you're no longer the host. Refresh and sign in again.",
   };
@@ -283,7 +283,7 @@ export default function TeamAssignmentPage() {
             </>
           ) : (
             <>
-              <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted truncate">
+              <span className="font-display text-[12px] font-bold tracking-[0.12em] uppercase text-text-muted truncate">
                 {run?.location ?? "Basketball Run"}
               </span>
               <span className="font-display text-[20px] font-black tracking-[0.02em] uppercase text-text-primary leading-none truncate">
@@ -313,14 +313,14 @@ export default function TeamAssignmentPage() {
       <div className="mx-5 mt-4 flex flex-col gap-2 flex-shrink-0 animate-fade-up" style={{ animationDelay: "0.06s" }}>
         <div className="flex justify-between items-center">
           <div className="flex flex-col gap-px">
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-accent-dim">Runs</span>
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-accent-dim">Runs</span>
             <span className={`font-display text-[28px] font-black tracking-[-0.02em] leading-none transition-colors ${diff >= 2 && countA > countB ? "text-warning" : "text-accent"}`}>
               {countA}
             </span>
           </div>
-          <span className="font-display text-[13px] font-bold tracking-[0.1em] uppercase text-text-muted">vs</span>
+          <span className="font-display text-[14px] font-bold tracking-[0.1em] uppercase text-text-muted">vs</span>
           <div className="flex flex-col gap-px items-end">
-            <span className="font-display text-[11px] font-bold tracking-[0.14em] uppercase text-text-muted">Next</span>
+            <span className="font-display text-[12px] font-bold tracking-[0.14em] uppercase text-text-muted">Next</span>
             <span className={`font-display text-[28px] font-black tracking-[-0.02em] leading-none transition-colors ${diff >= 2 && countB > countA ? "text-warning" : "text-text-secondary"}`}>
               {countB}
             </span>
@@ -330,7 +330,7 @@ export default function TeamAssignmentPage() {
           <div className="h-full bg-accent rounded-l-sm" style={{ width: `${pctA}%`, transition: "width 0.3s cubic-bezier(0.34,1.56,0.64,1)" }} />
           <div className="h-full bg-text-secondary rounded-r-sm" style={{ width: `${pctB}%`, transition: "width 0.3s cubic-bezier(0.34,1.56,0.64,1)" }} />
         </div>
-        <span className={`font-display text-[11px] font-bold tracking-[0.1em] uppercase text-center transition-colors ${balanceTextClass}`}>
+        <span className={`font-display text-[12px] font-bold tracking-[0.1em] uppercase text-center transition-colors ${balanceTextClass}`}>
           {balanceText}
         </span>
       </div>
@@ -385,7 +385,7 @@ export default function TeamAssignmentPage() {
       >
         {/* TEAM A */}
         <div className="flex flex-col min-h-0 pr-1.5 border-r border-border">
-          <div className="font-display text-[11px] font-extrabold tracking-[0.14em] uppercase text-accent-dim border-b border-border-accent pb-2 mb-2 flex-shrink-0">
+          <div className="font-display text-[12px] font-extrabold tracking-[0.14em] uppercase text-accent-dim border-b border-border-accent pb-2 mb-2 flex-shrink-0">
             Runs
           </div>
           <div
@@ -432,7 +432,7 @@ export default function TeamAssignmentPage() {
 
         {/* TEAM B */}
         <div className="flex flex-col min-h-0 pl-1.5">
-          <div className="font-display text-[11px] font-extrabold tracking-[0.14em] uppercase text-text-muted border-b border-border pb-2 mb-2 flex-shrink-0">
+          <div className="font-display text-[12px] font-extrabold tracking-[0.14em] uppercase text-text-muted border-b border-border pb-2 mb-2 flex-shrink-0">
             Next
           </div>
           <div
@@ -488,7 +488,7 @@ export default function TeamAssignmentPage() {
         >
           <RosterIcon />
           {bench.length > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-accent text-bg font-display text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none">
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-accent text-bg font-display text-[12px] font-black rounded-full flex items-center justify-center px-1 leading-none">
               {bench.length}
             </span>
           )}
@@ -496,7 +496,7 @@ export default function TeamAssignmentPage() {
 
         <div className="flex-1 flex flex-col gap-1">
           {confirmError && (
-            <p className="font-display text-[11px] font-bold tracking-[0.05em] text-warning text-center">{confirmError}</p>
+            <p className="font-display text-[12px] font-bold tracking-[0.05em] text-warning text-center">{confirmError}</p>
           )}
           <button
             type="button"
@@ -660,7 +660,7 @@ function PlayerActionModal({ player, onBenchForGame, onRemoveFromRun, onCancel }
       >
         {/* Player name header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border flex-shrink-0">
-          <span className="font-display text-[15px] font-black tracking-[0.04em] uppercase text-text-primary">
+          <span className="font-display text-[16px] font-black tracking-[0.04em] uppercase text-text-primary">
             {player.displayName}
           </span>
           <button
@@ -690,7 +690,7 @@ function PlayerActionModal({ player, onBenchForGame, onRemoveFromRun, onCancel }
               <span className="font-display text-[12px] font-extrabold tracking-[0.06em] uppercase text-accent-dim leading-none">
                 Bench for next game
               </span>
-              <span className="font-body text-[11px] text-text-muted leading-snug">
+              <span className="font-body text-[12px] text-text-muted leading-snug">
                 Back automatically next round
               </span>
             </div>
@@ -713,7 +713,7 @@ function PlayerActionModal({ player, onBenchForGame, onRemoveFromRun, onCancel }
               <span className="font-display text-[12px] font-extrabold tracking-[0.06em] uppercase text-danger leading-none">
                 Remove from run
               </span>
-              <span className="font-body text-[11px] text-text-muted leading-snug">
+              <span className="font-body text-[12px] text-text-muted leading-snug">
                 Off the queue for today
               </span>
             </div>
@@ -741,12 +741,12 @@ function SuggestionCard({ player, onAccept, onDismiss }: { player: Player; onAcc
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-accent bg-[rgba(200,241,53,0.04)] px-2.5 py-2 flex-shrink-0 animate-slide-in">
       <div className="flex items-center">
-        <span className="font-display text-[9px] font-bold tracking-[0.18em] uppercase text-accent bg-[rgba(200,241,53,0.14)] px-1.5 py-[3px] rounded-[3px]">
+        <span className="font-display text-[12px] font-bold tracking-[0.18em] uppercase text-accent bg-[rgba(200,241,53,0.14)] px-1.5 py-[3px] rounded-[3px]">
           Suggested
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="font-display text-[13px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
+        <span className="font-display text-[14px] font-extrabold tracking-[0.03em] uppercase text-text-primary leading-none flex-1 truncate min-w-0">
           {player.displayName}
         </span>
         <button
@@ -781,7 +781,7 @@ function UndoToastBar({ message, onUndo, onDismiss }: { message: string; onUndo:
     <div className="fixed bottom-[100px] inset-x-0 z-[190] flex justify-center px-5 pointer-events-none">
       <div className="w-full max-w-[480px] pointer-events-auto">
         <div className="flex items-center gap-2 bg-bg-raised border border-border rounded-md px-3 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] animate-slide-in">
-          <span className="font-display text-[13px] font-bold tracking-[0.04em] uppercase text-text-secondary flex-1 truncate">
+          <span className="font-display text-[14px] font-bold tracking-[0.04em] uppercase text-text-secondary flex-1 truncate">
             {message}
           </span>
           <button type="button" onClick={onUndo} className="font-display text-[12px] font-bold tracking-[0.08em] uppercase text-accent hover:text-accent-dim transition-colors flex-shrink-0 cursor-pointer">
@@ -814,13 +814,13 @@ function BenchSheet({ bench, onPlayerTap, onClose }: BenchSheetProps) {
           <div className="w-10 h-1 bg-border rounded-full mx-auto mt-2.5 mb-0.5 flex-shrink-0" />
           <div className="flex items-start justify-between px-5 py-3 flex-shrink-0 border-b border-border">
             <div className="flex flex-col gap-0.5">
-              <p className="font-display text-[15px] font-extrabold tracking-[0.06em] uppercase text-text-primary leading-none">
+              <p className="font-display text-[16px] font-extrabold tracking-[0.06em] uppercase text-text-primary leading-none">
                 On Bench
                 {bench.length > 0 && (
-                  <span className="ml-2 font-display text-[13px] font-bold text-text-muted">{bench.length}</span>
+                  <span className="ml-2 font-display text-[14px] font-bold text-text-muted">{bench.length}</span>
                 )}
               </p>
-              <p className="font-display text-[11px] font-bold tracking-[0.1em] uppercase text-text-muted">
+              <p className="font-display text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted">
                 {bench.length === 0 ? "All players are assigned" : "Tap to bring into the game"}
               </p>
             </div>
@@ -835,7 +835,7 @@ function BenchSheet({ bench, onPlayerTap, onClose }: BenchSheetProps) {
           <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-3">
             {bench.length === 0 ? (
               <div className="py-8 flex flex-col items-center gap-1.5 text-center">
-                <span className="font-display text-[13px] font-bold tracking-[0.08em] uppercase text-text-muted">Bench is empty</span>
+                <span className="font-display text-[14px] font-bold tracking-[0.08em] uppercase text-text-muted">Bench is empty</span>
                 <span className="font-body text-[12px] text-text-muted leading-relaxed max-w-[200px]">All waiting players are already assigned to a team</span>
               </div>
             ) : (
@@ -847,10 +847,10 @@ function BenchSheet({ bench, onPlayerTap, onClose }: BenchSheetProps) {
                     onClick={() => onPlayerTap(player)}
                     className="w-full flex items-center gap-3 rounded-md border border-border bg-bg-surface px-3 py-2.5 cursor-pointer hover:border-accent-dim hover:bg-[rgba(200,241,53,0.04)] transition-all duration-[120ms] group"
                   >
-                    <span className="font-display text-[15px] font-extrabold tracking-[0.03em] uppercase leading-none flex-1 text-left truncate min-w-0 text-text-primary group-hover:text-accent transition-colors">
+                    <span className="font-display text-[16px] font-extrabold tracking-[0.03em] uppercase leading-none flex-1 text-left truncate min-w-0 text-text-primary group-hover:text-accent transition-colors">
                       {player.displayName}
                     </span>
-                    <span className="font-display text-[11px] font-semibold tracking-[0.06em] text-text-muted flex-shrink-0 whitespace-nowrap">
+                    <span className="font-display text-[12px] font-semibold tracking-[0.06em] text-text-muted flex-shrink-0 whitespace-nowrap">
                       {player.gamesPlayed} {player.gamesPlayed === 1 ? "game" : "games"}
                     </span>
                   </button>

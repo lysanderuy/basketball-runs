@@ -8,7 +8,7 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "BallRuns — Run your game",
+  title: "BallRuns: Run your game",
   description: "Basketball run management and scorekeeping",
 };
 

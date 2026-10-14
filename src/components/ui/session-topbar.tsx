@@ -67,7 +67,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
             </>
           ) : (
             <>
-              <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted truncate">
+              <span className="font-display text-[12px] font-bold tracking-[0.12em] uppercase text-text-muted truncate">
                 {run?.location ?? "Basketball Run"}
               </span>
               <span className="font-display text-[20px] font-black tracking-[0.02em] uppercase text-text-primary leading-none truncate">
@@ -101,7 +101,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                         className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
                       >
                         <Share2 className="w-4 h-4 flex-shrink-0" />
-                        <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">Share</span>
+                        <span className="font-display text-[14px] font-bold tracking-[0.06em] uppercase">Share</span>
                       </button>
                     )}
                     {menuAction && (
@@ -113,7 +113,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                           className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-[#ff6060] hover:bg-danger/[0.08] transition-colors"
                         >
                           <Flag className="w-4 h-4 flex-shrink-0" />
-                          <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">{menuAction.label}</span>
+                          <span className="font-display text-[14px] font-bold tracking-[0.06em] uppercase">{menuAction.label}</span>
                         </button>
                       </>
                     )}
@@ -126,7 +126,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                           className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-[#ff6060] hover:bg-danger/[0.08] transition-colors"
                         >
                           <Flag className="w-4 h-4 flex-shrink-0" />
-                          <span className="font-display text-[13px] font-bold tracking-[0.06em] uppercase">End Run</span>
+                          <span className="font-display text-[14px] font-bold tracking-[0.06em] uppercase">End Run</span>
                         </button>
                       </>
                     )}
@@ -196,7 +196,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
               </div>
 
               <div className="flex flex-col items-center gap-1">
-                <span className="font-display text-[10px] font-bold tracking-[0.16em] uppercase text-text-muted">
+                <span className="font-display text-[12px] font-bold tracking-[0.16em] uppercase text-text-muted">
                   Session Code
                 </span>
                 <span className="font-display text-[32px] font-black tracking-[0.12em] uppercase text-accent leading-none">
@@ -204,7 +204,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                 </span>
               </div>
 
-              <span className="w-full font-display text-[10px] font-bold tracking-[0.16em] uppercase text-text-muted">
+              <span className="w-full font-display text-[12px] font-bold tracking-[0.16em] uppercase text-text-muted">
                 Share this run
               </span>
               <div className="w-full flex items-center gap-2 bg-bg-surface border border-border rounded-md px-3 py-2.5">
@@ -214,7 +214,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className={`flex items-center gap-1.5 font-display text-[11px] font-bold tracking-[0.08em] uppercase flex-shrink-0 transition-colors ${
+                  className={`flex items-center gap-1.5 font-display text-[12px] font-bold tracking-[0.08em] uppercase flex-shrink-0 transition-colors ${
                     copied ? "text-accent" : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
@@ -240,12 +240,12 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                 <span className="font-display text-[16px] font-black tracking-[0.06em] uppercase text-text-primary">
                   End this run?
                 </span>
-                <span className="font-body text-[13px] text-text-secondary leading-[1.5]">
+                <span className="font-body text-[14px] text-text-secondary leading-[1.5]">
                   This closes the run for everyone. This can&apos;t be undone.
                 </span>
                 {liveGameWarning && (
-                  <span className="font-body text-[13px] text-[#ff6060] leading-[1.5] font-semibold">
-                    A game is still live — it will be ended too.
+                  <span className="font-body text-[14px] text-[#ff6060] leading-[1.5] font-semibold">
+                    A game is still live, so it will be ended too.
                   </span>
                 )}
               </div>
@@ -253,7 +253,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                 <button
                   type="button"
                   onClick={() => setShowEndRunConfirm(false)}
-                  className="flex-1 h-11 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[13px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
+                  className="flex-1 h-11 rounded-md border border-border bg-bg-surface text-text-secondary font-display text-[14px] font-bold tracking-[0.08em] uppercase transition-colors hover:border-text-muted hover:text-text-primary"
                 >
                   Cancel
                 </button>
@@ -261,7 +261,7 @@ export function SessionTopbar({ run, loading, badge, backHref, exitHref, menuAct
                   type="button"
                   onClick={handleEndRun}
                   disabled={endingRun}
-                  className="flex-1 h-11 rounded-md border border-danger bg-danger/[0.08] text-[#ff6060] font-display text-[13px] font-black tracking-[0.1em] uppercase transition-all hover:bg-danger/[0.16] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 h-11 rounded-md border border-danger bg-danger/[0.08] text-[#ff6060] font-display text-[14px] font-black tracking-[0.1em] uppercase transition-all hover:bg-danger/[0.16] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {endingRun ? "Ending…" : "End Run"}
                 </button>
