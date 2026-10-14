@@ -136,7 +136,7 @@ db (src/db, Drizzle) / Supabase
 **Never skip a layer.** Every layer only talks to the layer below it.
 
 - **Client components NEVER import from `src/services`, `src/db`, or `src/lib/supabase/{client,proxy}`.** They reach the backend only through `src/hooks` → the api wrapper. No exceptions for app data.
-- **Server Components NEVER import from `src/services` or `src/db`.** They reach the backend only through `fetch('/api/...')` parsed as the `ApiResponse<T>` envelope. (There is no Server-Component shortcut. The auth bootstrap is the only Supabase-SDK-direct call, in `app/(auth)/actions.ts`.)
+- **Server Components NEVER import from `src/services` or `src/db`.** They reach the backend only through `fetch('/api/...')` parsed as the `ApiResponse<T>` envelope. (There is no Server-Component shortcut for app data. The only exception is reading the session identity via `getSessionUser()` from `src/lib/supabase/server`.)
 - **Route handlers stay thin:** authenticate (`createClient()` from `src/lib/supabase/server` + `getUser()`), validate with Zod (`safeParse` — never `parse`), delegate to a service, respond with `apiSuccess` / `apiError` / `handleApiError` from `src/lib/api/response.ts`. No business logic, no DB queries, no direct Drizzle.
 - **Services own ALL business logic and DB access.** They never touch `Request` / `Response` / `cookies`. They take plain typed inputs (including the authenticated `userId`) and must scope every query to the authenticated user. Validation does not live here — services trust their inputs.
 - **Auth exception:** `src/app/(auth)/actions.ts` calls the Supabase SDK directly. It manages its own cookies and is the only place outside `lib/supabase/` allowed to do so. **App data never does this.**
@@ -201,7 +201,7 @@ db (src/db, Drizzle) / Supabase
 - `lib/api/` — HTTP envelope (above).
 - `lib/env.ts` — Zod-validated env vars. Replaces `process.env.X!` non-null assertions. Lazy, server-only.
 - `lib/query/` — `QueryClient` setup. Imported by `app/layout.tsx`.
-- `lib/supabase/` — browser client, server client, middleware session refresh. Used by routes, middleware, and the auth actions.
+- `lib/supabase/` — browser client, server client, middleware session refresh. Used by routes, middleware, and the auth actions. Server Components may call only `getSessionUser()` from `server.ts`, never `createClient()` directly.
 - `lib/utils.ts` — pure utility functions (`cn`, `formatTime`, `generateRunCode`, `deriveInitials`).
 
 ---
